@@ -55,6 +55,7 @@ export async function saveSettings(_prev: SettingsState, formData: FormData): Pr
       weekday_close: weekdayClose,
       saturday_open: saturdayOpen,
       saturday_close: saturdayClose,
+      use_canteen_codes: formData.get("use_canteen_codes") === "on",
     })
     .eq("id", profile.school_id);
 

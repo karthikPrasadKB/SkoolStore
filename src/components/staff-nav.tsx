@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { GraduationCap, History, LayoutDashboard, Package, Receipt, Settings, type LucideIcon } from "lucide-react";
+import { GraduationCap, History, LayoutDashboard, MessageSquare, Package, Receipt, Settings, type LucideIcon } from "lucide-react";
 import { areasFor, type Role } from "@/lib/roles";
 
 const ICONS: Record<string, LucideIcon> = {
@@ -11,11 +11,21 @@ const ICONS: Record<string, LucideIcon> = {
   "/counter": Receipt,
   "/counter/sales": History,
   "/admin/students": GraduationCap,
+  "/admin/requests": MessageSquare,
   "/admin/settings": Settings,
 };
 
 // Sidebar links on desktop, a scrollable strip on phones.
-export function StaffNav({ role, layout }: { role: Role; layout: "sidebar" | "strip" }) {
+export function StaffNav({
+  role,
+  layout,
+  badges = {},
+}: {
+  role: Role;
+  layout: "sidebar" | "strip";
+  // Small counts shown next to links, e.g. open requests.
+  badges?: Record<string, number>;
+}) {
   const pathname = usePathname();
   const areas = areasFor(role);
   // Highlight the most specific matching link, so /admin/settings doesn't also light up /admin.
@@ -40,6 +50,11 @@ export function StaffNav({ role, layout }: { role: Role; layout: "sidebar" | "st
           >
             <Icon className="h-[18px] w-[18px]" />
             {area.label}
+            {(badges[area.href] ?? 0) > 0 && (
+              <span className="ml-auto rounded-full bg-amber-500 px-2 py-0.5 text-xs font-bold text-white">
+                {badges[area.href]}
+              </span>
+            )}
           </Link>
         );
       })}

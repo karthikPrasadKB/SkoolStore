@@ -17,6 +17,7 @@ export type SchoolSettings = {
   weekday_close: string;
   saturday_open: string | null;
   saturday_close: string | null;
+  use_canteen_codes: boolean;
 };
 
 // The logged-in user's school with all its settings. Cached for one request.
@@ -25,7 +26,7 @@ export const getSchool = cache(async (): Promise<SchoolSettings> => {
   const { data, error } = await supabase
     .from("schools")
     .select(
-      "id, name, join_code, address, phone, gstin, gst_rate, preorder_cutoff_time, preorder_cutoff_same_day, counter_discount_allowed, counter_max_discount_percent, weekday_open, weekday_close, saturday_open, saturday_close",
+      "id, name, join_code, address, phone, gstin, gst_rate, preorder_cutoff_time, preorder_cutoff_same_day, counter_discount_allowed, counter_max_discount_percent, weekday_open, weekday_close, saturday_open, saturday_close, use_canteen_codes",
     )
     .single();
   if (error) throw error;

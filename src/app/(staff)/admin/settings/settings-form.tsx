@@ -142,6 +142,27 @@ export function SettingsForm({ school }: { school: SchoolSettings }) {
         </div>
       </Section>
 
+      <Section
+        title="Identifying students at the counter"
+        hint="Students show their school ID card, and staff type or scan the ID number."
+      >
+        <label className="flex cursor-pointer items-start gap-3">
+          <input
+            type="checkbox"
+            name="use_canteen_codes"
+            defaultChecked={school.use_canteen_codes}
+            className="mt-1 h-4 w-4 accent-brand-600"
+          />
+          <span>
+            <span className="block font-semibold text-slate-900">Also use canteen codes</span>
+            <span className="block text-sm text-slate-500">
+              Gives every student a private 6-character code (like a PIN) that parents can see. Students can then give
+              the code instead of showing their ID card.
+            </span>
+          </span>
+        </label>
+      </Section>
+
       <Section title="Discounts" hint="Admins and canteen staff can always give discounts.">
         <label className="flex cursor-pointer items-start gap-3">
           <input

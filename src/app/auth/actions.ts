@@ -2,6 +2,7 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { loginEmail, STAFF_EMAIL_DOMAIN } from "@/lib/staff-login";
 import { createClient } from "@/lib/supabase/server";
 
 export type FormState = { error?: string; message?: string };
@@ -13,31 +14,38 @@ function text(formData: FormData, key: string) {
 export async function login(_prev: FormState, formData: FormData): Promise<FormState> {
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({
-    email: text(formData, "email"),
+    // Parents use their email; staff use their username.
+    email: loginEmail(text(formData, "login")),
     password: String(formData.get("password") ?? ""),
   });
 
   if (error?.code === "email_not_confirmed") {
     return { error: "Please confirm your email first. Check your inbox for the link we sent." };
   }
-  if (error) return { error: "Wrong email or password." };
+  if (error) return { error: "Wrong email, username or password." };
   redirect("/");
 }
 
 export async function signup(_prev: FormState, formData: FormData): Promise<FormState> {
   const fullName = text(formData, "full_name");
   const phone = text(formData, "phone");
-  const schoolCode = text(formData, "school_code").toUpperCase();
+  // One or more schools picked from the dropdown. The first becomes the account's main school.
+  const schoolCodes = [
+    ...new Set(formData.getAll("school_code").map((code) => String(code).trim().toUpperCase()).filter(Boolean)),
+  ];
   const email = text(formData, "email");
   const password = String(formData.get("password") ?? "");
 
-  if (!fullName || !schoolCode || !email) return { error: "Please fill in all required fields." };
+  if (!fullName || !email) return { error: "Please fill in all required fields." };
+  if (schoolCodes.length === 0) return { error: "Please choose your school." };
   if (password.length < 8) return { error: "Password must be at least 8 characters." };
+  if (email.toLowerCase().endsWith(`@${STAFF_EMAIL_DOMAIN}`)) return { error: "Please use your real email address." };
 
   const supabase = await createClient();
 
-  const { data: schools } = await supabase.rpc("find_school_by_code", { code: schoolCode });
-  if (!schools?.length) return { error: "We couldn't find a school with that code." };
+  const { data: schools } = await supabase.rpc("list_schools");
+  const known = new Set(((schools ?? []) as { join_code: string }[]).map((s) => s.join_code));
+  if (schoolCodes.some((code) => !known.has(code))) return { error: "Please choose schools from the list." };
 
   const headerList = await headers();
   const origin = headerList.get("origin") ?? `https://${headerList.get("host")}`;
@@ -46,7 +54,7 @@ export async function signup(_prev: FormState, formData: FormData): Promise<Form
     email,
     password,
     options: {
-      data: { full_name: fullName, phone, school_code: schoolCode },
+      data: { full_name: fullName, phone, school_code: schoolCodes[0], school_codes: schoolCodes },
       emailRedirectTo: `${origin}/auth/callback`,
     },
   });

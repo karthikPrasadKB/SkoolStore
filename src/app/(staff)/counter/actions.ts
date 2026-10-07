@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 
 export type SaleInput = {
   items: { product_id: string; quantity: number; option_ids: string[] }[];
-  payment_method: "cash" | "upi" | "pluxee";
+  payment_method: "cash" | "upi" | "pluxee" | "wallet";
   amount_received: number | null;
   discount_amount: number;
   discount_reason: string;
@@ -66,21 +66,50 @@ export async function cancelOrder(_prev: CancelState, formData: FormData): Promi
   return { done: true };
 }
 
-export type StudentMatch = { name: string; class_name: string; code: string } | null;
+export type StudentMatch = {
+  name: string;
+  class_name: string;
+  code: string;
+  id_card_number: string | null;
+  has_wallet: boolean;
+  balance: number;
+  wallet_allowed: boolean;
+  daily_limit: number | null;
+  spent_today: number;
+} | null;
 
-// Finds a student by their secret code so the biller can confirm who it is.
-export async function lookupStudent(code: string): Promise<StudentMatch> {
+// Finds a student by their ID card number (or canteen code, if the school uses codes),
+// with their family wallet details, so the biller can confirm who it is.
+export async function lookupStudent(idOrCode: string): Promise<StudentMatch> {
   await requireRole(["admin", "canteen_staff", "counter_staff"]);
-  const clean = code.trim().toUpperCase();
-  if (!/^[A-Z0-9]{4,12}$/.test(clean)) return null;
+  const clean = idOrCode.trim().toUpperCase();
+  if (!clean || clean.length > 30) return null;
 
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("students")
-    .select("full_name, class_name, code")
-    .eq("code", clean)
-    .maybeSingle();
-  return data ? { name: data.full_name, class_name: data.class_name, code: data.code } : null;
+  const { data } = await supabase.rpc("counter_student_lookup", { p_code: clean });
+  if (!data) return null;
+  return {
+    ...data,
+    balance: Number(data.balance),
+    daily_limit: data.daily_limit === null ? null : Number(data.daily_limit),
+    spent_today: Number(data.spent_today),
+  };
+}
+
+export type TopUpResult = { ok: true; balance: number } | { ok: false; error: string };
+
+// Adds money to the family wallet of the student with this code (paid at the counter by cash or UPI).
+export async function topUpWallet(code: string, amount: number, method: "cash" | "upi"): Promise<TopUpResult> {
+  await requireRole(["admin", "canteen_staff", "counter_staff"]);
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("topup_wallet", {
+    p_student_code: code,
+    p_amount: amount,
+    p_method: method,
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/counter", "layout");
+  return { ok: true, balance: Number(data.balance) };
 }
 
 // Turns "+91 98765-43210" or "098765 43210" into "9876543210". Null if not a valid Indian mobile.

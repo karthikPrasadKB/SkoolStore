@@ -9,7 +9,7 @@ export type CompletedSale = {
   public_token: string;
   total: number;
   change: number;
-  payment_method: "cash" | "upi" | "pluxee";
+  payment_method: "cash" | "upi" | "pluxee" | "wallet";
   student_name: string | null;
 };
 
@@ -30,7 +30,8 @@ export function SaleComplete({ sale, onNewSale }: { sale: CompletedSale; onNewSa
         <p className="mt-3 text-sm font-semibold text-slate-500">Bill #{sale.bill_number}</p>
         <p className="text-3xl font-extrabold">{formatINR(sale.total)}</p>
         <p className="text-sm text-slate-500">
-          Paid by {sale.payment_method === "upi" ? "UPI" : sale.payment_method === "pluxee" ? "Pluxee" : "cash"}
+          Paid by{" "}
+          {{ cash: "cash", upi: "UPI", pluxee: "Pluxee", wallet: "wallet" }[sale.payment_method]}
           {sale.student_name && ` · saved to ${sale.student_name}`}
         </p>
 

@@ -24,6 +24,8 @@ export type Product = {
   food_type: FoodType;
   image_path: string | null;
   is_active: boolean;
+  // Only sold through parent pre-orders, never at the counter.
+  preorder_only: boolean;
   stock_mode: StockMode;
   stock_qty: number;
   daily_limit: number;

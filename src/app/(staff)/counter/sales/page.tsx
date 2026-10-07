@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Banknote, ExternalLink, Smartphone, WalletCards, type LucideIcon } from "lucide-react";
+import { Banknote, ExternalLink, PiggyBank, Smartphone, Wallet, WalletCards, type LucideIcon } from "lucide-react";
 import { Card, PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import { formatINR } from "@/lib/menu";
@@ -29,6 +29,7 @@ const METHODS: { value: string; label: string; icon: LucideIcon; tone: string }[
   { value: "cash", label: "Cash", icon: Banknote, tone: "bg-emerald-50 text-emerald-600" },
   { value: "upi", label: "UPI", icon: Smartphone, tone: "bg-sky-50 text-sky-600" },
   { value: "pluxee", label: "Pluxee", icon: WalletCards, tone: "bg-accent-50 text-accent-600" },
+  { value: "wallet", label: "Wallet", icon: Wallet, tone: "bg-violet-50 text-violet-600" },
 ];
 
 function todayInIndia() {
@@ -46,6 +47,16 @@ export default async function SalesPage() {
     .eq("pickup_date", todayInIndia())
     .order("created_at", { ascending: false });
   const orders = (data ?? []) as unknown as OrderRow[];
+
+  // Wallet top-ups taken at the counter today (real money in the drawer, but not sales).
+  const { data: topupRows } = await supabase
+    .from("wallet_transactions")
+    .select("amount, payment_method")
+    .eq("type", "topup")
+    .gte("created_at", `${todayInIndia()}T00:00:00+05:30`);
+  const topups = (topupRows ?? []) as { amount: number; payment_method: string | null }[];
+  const topupFor = (method: string) =>
+    topups.filter((t) => t.payment_method === method).reduce((sum, t) => sum + Number(t.amount), 0);
   const valid = orders.filter((o) => o.status !== "cancelled");
   const sumFor = (method: string) =>
     valid.filter((o) => o.payment_method === method).reduce((sum, o) => sum + Number(o.total), 0);
@@ -58,7 +69,7 @@ export default async function SalesPage() {
         description={new Date().toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "full" })}
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Card className="bg-gradient-to-br from-brand-600 to-brand-900 p-5 text-white">
           <p className="text-sm text-brand-100">Total sales</p>
           <p className="mt-1 text-3xl font-extrabold">{formatINR(total)}</p>
@@ -76,6 +87,27 @@ export default async function SalesPage() {
           </Card>
         ))}
       </div>
+
+      <Card className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 p-5">
+        <div className="flex items-center gap-3">
+          <div className="rounded-xl bg-emerald-50 p-3 text-emerald-600">
+            <PiggyBank className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="font-semibold text-slate-900">Wallet top-ups today</p>
+            <p className="text-xs text-slate-500">Money added to family wallets. Not counted as sales.</p>
+          </div>
+        </div>
+        <p className="text-sm">
+          Cash <span className="font-bold">{formatINR(topupFor("cash"))}</span>
+        </p>
+        <p className="text-sm">
+          UPI <span className="font-bold">{formatINR(topupFor("upi"))}</span>
+        </p>
+        <p className="ml-auto text-sm text-slate-500">
+          Cash in drawer today: <span className="font-bold text-slate-900">{formatINR(sumFor("cash") + topupFor("cash"))}</span>
+        </p>
+      </Card>
 
       <Card className="mt-6 overflow-hidden p-0">
         {orders.length === 0 ? (

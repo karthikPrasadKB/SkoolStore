@@ -11,7 +11,7 @@ School canteen ordering and stock management. Built with Next.js, Tailwind CSS a
 | Counter staff | Counter, Menu & stock (update stock and show/hide items only) |
 | Parent | My orders |
 
-Everyone signs up as a **parent** using the school's join code. The school admin then changes staff roles on the Admin page.
+Parents sign up themselves and pick their school. Staff accounts are created by the school admin on the Dashboard (**Add staff**).
 
 ## First-time setup
 
@@ -20,6 +20,8 @@ Everyone signs up as a **parent** using the school's join code. The school admin
 2. Open `.env.local` in this folder and fill in:
    - `NEXT_PUBLIC_SUPABASE_URL`: your project URL (Project Settings → Data API)
    - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`: the **publishable** key (starts with `sb_publishable_`)
+   - `SUPABASE_SECRET_KEY`: a **secret** key (Project Settings → API Keys → Secret keys, starts with `sb_secret_`).
+     Needed for admins to create staff accounts. Keep it private: never share it or put it in a `NEXT_PUBLIC_` variable.
 
 ### 2. Create the database tables
 1. In Supabase, open **SQL Editor** → **New query**.

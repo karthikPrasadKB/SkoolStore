@@ -163,6 +163,11 @@ export default async function KitchenPage({ searchParams }: PageProps<"/kitchen"
                             <p className="truncate text-xs text-slate-500">
                               {(product.category_id && categoryName.get(product.category_id)) || "No category"}
                               {optionCount > 0 && ` · ${optionCount} customisation${optionCount > 1 ? "s" : ""}`}
+                              {product.preorder_only && (
+                                <span className="ml-1.5 rounded-full bg-accent-50 px-2 py-0.5 font-semibold text-accent-600">
+                                  Pre-order only
+                                </span>
+                              )}
                             </p>
                           </div>
                         </div>

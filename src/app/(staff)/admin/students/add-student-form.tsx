@@ -20,7 +20,13 @@ export function AddStudentForm() {
     <form ref={formRef} action={action}>
       <div className="flex flex-col gap-2 sm:flex-row">
         <input name="full_name" required maxLength={100} placeholder="Student's full name" className={inputClass} />
-        <input name="class_name" maxLength={30} placeholder="Class, e.g. 5-B" className={`${inputClass} sm:w-40`} />
+        <input name="class_name" maxLength={30} placeholder="Class, e.g. 5-B" className={`${inputClass} sm:w-36`} />
+        <input
+          name="id_card_number"
+          maxLength={30}
+          placeholder="ID card number"
+          className={`${inputClass} uppercase sm:w-44`}
+        />
         <Button type="submit" disabled={pending} className="shrink-0">
           <Plus className="h-4 w-4" /> Add student
         </Button>

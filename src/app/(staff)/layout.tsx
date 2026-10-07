@@ -5,11 +5,23 @@ import { Logo } from "@/components/logo";
 import { StaffNav } from "@/components/staff-nav";
 import { getProfile } from "@/lib/auth";
 import { ROLE_LABELS } from "@/lib/roles";
+import { createClient } from "@/lib/supabase/server";
 
 // Frame for admin and canteen staff screens: clean sidebar layout.
 export default async function StaffLayout({ children }: { children: React.ReactNode }) {
   const profile = await getProfile();
   if (!profile) redirect("/login");
+
+  // Admins see how many parent requests are waiting.
+  const badges: Record<string, number> = {};
+  if (profile.role === "admin") {
+    const supabase = await createClient();
+    const { count } = await supabase
+      .from("support_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "open");
+    badges["/admin/requests"] = count ?? 0;
+  }
 
   const initials = profile.full_name
     .split(" ")
@@ -52,7 +64,7 @@ export default async function StaffLayout({ children }: { children: React.ReactN
           <p className="truncate font-semibold text-slate-800">{profile.school.name}</p>
         </div>
         <div className="mt-6 flex-1">
-          <StaffNav role={profile.role} layout="sidebar" />
+          <StaffNav role={profile.role} layout="sidebar" badges={badges} />
         </div>
         <div className="flex items-center justify-between gap-2 border-t border-slate-200 pt-4">
           {userCard}
@@ -67,7 +79,7 @@ export default async function StaffLayout({ children }: { children: React.ReactN
             {logoutButton}
           </div>
           <div className="mt-3">
-            <StaffNav role={profile.role} layout="strip" />
+            <StaffNav role={profile.role} layout="strip" badges={badges} />
           </div>
         </header>
         {/* Pages marked data-fullbleed (like the counter) use the whole width with no padding. */}

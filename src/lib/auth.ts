@@ -20,7 +20,8 @@ export const getProfile = cache(async (): Promise<Profile | null> => {
 
   const { data } = await supabase
     .from("profiles")
-    .select("id, school_id, role, full_name, phone, school:schools(name, join_code)")
+    // Name the link explicitly: profiles also reach schools through parent_schools.
+    .select("id, school_id, role, full_name, phone, school:schools!profiles_school_id_fkey(name, join_code)")
     .eq("id", auth.claims.sub)
     .single();
 

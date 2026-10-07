@@ -1,7 +1,12 @@
 import { AuthLink, AuthShell } from "@/components/auth-shell";
+import type { School } from "@/components/school-picker";
+import { createClient } from "@/lib/supabase/server";
 import { SignupForm } from "./signup-form";
 
-export default function SignupPage() {
+export default async function SignupPage() {
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("list_schools");
+
   return (
     <AuthShell
       title="Create your account"
@@ -12,7 +17,7 @@ export default function SignupPage() {
         </>
       }
     >
-      <SignupForm />
+      <SignupForm schools={(data ?? []) as School[]} />
     </AuthShell>
   );
 }

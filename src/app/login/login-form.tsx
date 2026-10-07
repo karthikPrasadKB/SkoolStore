@@ -11,7 +11,15 @@ export function LoginForm({ linkError }: { linkError: boolean }) {
     <form action={action} className="space-y-4">
       {linkError && <Alert kind="error">That link has expired. Please log in or sign up again.</Alert>}
       {state.error && <Alert kind="error">{state.error}</Alert>}
-      <Field label="Email" name="email" type="email" autoComplete="email" required />
+      <Field
+        label="Email or username"
+        name="login"
+        autoComplete="username"
+        autoCapitalize="none"
+        spellCheck={false}
+        required
+        hint="Staff: use the username your school admin gave you."
+      />
       <Field label="Password" name="password" type="password" autoComplete="current-password" required />
       <Button type="submit" disabled={pending} className="w-full py-3">
         {pending ? "Logging in…" : "Log in"}

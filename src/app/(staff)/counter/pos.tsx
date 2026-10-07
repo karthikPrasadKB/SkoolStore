@@ -3,12 +3,13 @@
 import { useMemo, useState, useTransition } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { Banknote, GraduationCap, Minus, Plus, Search, ShoppingBag, Smartphone, Tag, Trash2, UserRound, UtensilsCrossed, WalletCards, X } from "lucide-react";
+import { Banknote, GraduationCap, Minus, Plus, Search, ShoppingBag, Smartphone, Tag, Trash2, UserRound, UtensilsCrossed, Wallet, WalletCards, X } from "lucide-react";
 import { FoodTypeMark } from "@/components/food-type-mark";
 import { Alert } from "@/components/ui";
 import { formatINR, imageUrl, type Category, type FoodType } from "@/lib/menu";
 import { createCounterOrder, lookupCustomer, lookupStudent, type CustomerMatch, type SaleInput, type StudentMatch } from "./actions";
 import { SaleComplete, type CompletedSale } from "./sale-complete";
+import { StudentCard, walletSpendable } from "./student-card";
 
 export type PosOption = { id: string; name: string; price_delta: number };
 export type PosGroup = { id: string; name: string; is_required: boolean; max_select: number; options: PosOption[] };
@@ -47,10 +48,12 @@ export function Pos({
   products,
   categories,
   maxDiscountPercent,
+  useCanteenCodes,
 }: {
   products: PosProduct[];
   categories: Category[];
   maxDiscountPercent: number;
+  useCanteenCodes: boolean;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -101,6 +104,16 @@ export function Pos({
   const receivedNumber = received === "" ? total : Number(received);
   const change = receivedNumber - total;
 
+  // Wallet payment is offered only when a student is found and the parent's rules allow this bill.
+  const spendable = student ? walletSpendable(student) : 0;
+  let walletProblem: string | null = null;
+  if (student) {
+    if (!student.has_wallet) walletProblem = "No wallet";
+    else if (!student.wallet_allowed) walletProblem = "Not allowed";
+    else if (student.balance < total) walletProblem = "Low balance";
+    else if (spendable < total) walletProblem = "Daily limit";
+  }
+
   function addToCart(product: PosProduct, options: PosOption[], quantity: number) {
     const optionIds = options.map((o) => o.id).sort();
     const key = `${product.id}:${optionIds.join(",")}`;
@@ -132,20 +145,21 @@ export function Pos({
   }
 
   function enterStudentCode(value: string) {
-    setStudentCode(value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12));
+    // ID card numbers can contain letters, digits, "/" and "-" (e.g. "2024/0153").
+    setStudentCode(value.toUpperCase().replace(/[^A-Z0-9/-]/g, "").slice(0, 30));
     setStudent(null);
     setStudentError(null);
   }
 
   function findStudent() {
-    if (studentCode.length < 4) {
-      setStudentError("Codes are at least 4 characters.");
+    if (!studentCode) {
+      setStudentError(useCanteenCodes ? "Enter the ID card number or canteen code." : "Enter the ID card number.");
       return;
     }
     startLookup(async () => {
       const match = await lookupStudent(studentCode);
       if (match) setStudent(match);
-      else setStudentError("No student with that code.");
+      else setStudentError(useCanteenCodes ? "No student with that ID number or code." : "No student with that ID card number.");
     });
   }
 
@@ -195,6 +209,7 @@ export function Pos({
   }
 
   function clearStudent() {
+    setPayment((current) => (current === "wallet" ? "cash" : current));
     setShowStudent(false);
     setStudentCode("");
     setStudent(null);
@@ -224,6 +239,10 @@ export function Pos({
       setError("Enter a valid mobile number, or remove the customer.");
       return;
     }
+    if (payment === "wallet" && (!student || walletProblem)) {
+      setError("This bill can't be paid from the wallet. Choose another payment method.");
+      return;
+    }
     if (payment === "cash" && change < 0) {
       setError("Cash received is less than the total.");
       return;
@@ -246,6 +265,10 @@ export function Pos({
         return;
       }
       setCompleted({ ...result, payment_method: payment, student_name: student?.name ?? null });
+      // Keep the shown wallet balance in step until the next sale.
+      if (payment === "wallet" && student) {
+        setStudent({ ...student, balance: student.balance - result.total, spent_today: student.spent_today + result.total });
+      }
       router.refresh();
     });
   }
@@ -389,16 +412,12 @@ export function Pos({
           {/* Student (optional): saves the sale to the student's account */}
           {showStudent &&
             (student ? (
-              <div className="flex items-center gap-3 rounded-xl bg-emerald-50 px-3 py-2">
-                <GraduationCap className="h-5 w-5 shrink-0 text-emerald-600" />
-                <div className="min-w-0 flex-1 text-sm">
-                  <p className="truncate font-semibold text-emerald-900">{student.name}</p>
-                  <p className="text-xs text-emerald-700">{student.class_name || "No class"} · code {student.code}</p>
-                </div>
-                <button onClick={clearStudent} className="rounded-lg p-1 text-emerald-700 hover:bg-emerald-100" title="Remove student">
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
+              <StudentCard
+                student={student}
+                showCode={useCanteenCodes}
+                onRemove={clearStudent}
+                onBalanceChange={(balance) => setStudent({ ...student, balance })}
+              />
             ) : (
               <div>
                 <div className="flex gap-2">
@@ -409,7 +428,7 @@ export function Pos({
                     autoFocus
                     autoCapitalize="characters"
                     autoComplete="off"
-                    placeholder="Student code"
+                    placeholder={useCanteenCodes ? "ID card number or canteen code" : "ID card number"}
                     className={`${inputClass} font-mono uppercase tracking-widest`}
                   />
                   <button
@@ -532,7 +551,7 @@ export function Pos({
           </div>
 
           {/* Payment */}
-          <div className="grid grid-cols-3 gap-2">
+          <div className={`grid gap-2 ${student ? "grid-cols-4" : "grid-cols-3"}`}>
             {PAYMENT_METHODS.map(({ value, label, icon: Icon }) => (
               <button
                 key={value}
@@ -545,7 +564,26 @@ export function Pos({
                 {label}
               </button>
             ))}
+            {student && (
+              <button
+                onClick={() => setPayment("wallet")}
+                disabled={Boolean(walletProblem) && total > 0}
+                title={walletProblem ?? "Pay from the family wallet"}
+                className={`flex flex-col items-center gap-1 rounded-xl border-2 py-2.5 text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                  payment === "wallet" ? "border-emerald-600 bg-emerald-50 text-emerald-700" : "border-slate-200 text-slate-600 hover:border-slate-300"
+                }`}
+              >
+                <Wallet className="h-5 w-5" />
+                {walletProblem && total > 0 ? <span className="text-[10px] leading-tight">{walletProblem}</span> : "Wallet"}
+              </button>
+            )}
           </div>
+
+          {payment === "wallet" && student && total > 0 && (
+            <p className="rounded-xl bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+              {formatINR(total)} will be taken from the wallet. Balance after: {formatINR(student.balance - total)}.
+            </p>
+          )}
 
           {payment === "cash" && total > 0 && (
             <div className="space-y-2">

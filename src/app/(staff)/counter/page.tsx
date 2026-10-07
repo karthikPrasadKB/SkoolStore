@@ -29,6 +29,7 @@ export default async function CounterPage() {
       .from("products")
       .select("*, option_groups(id, name, is_required, max_select, sort_order, options(id, name, price_delta, sort_order))")
       .eq("is_active", true)
+      .eq("preorder_only", false)
       .order("name"),
     supabase.from("categories").select("id, name, sort_order").order("sort_order"),
     supabase.rpc("product_sold_on", { p_date: todayInIndia() }),
@@ -73,6 +74,7 @@ export default async function CounterPage() {
       products={products}
       categories={(categoryRows ?? []) as Category[]}
       maxDiscountPercent={maxDiscountPercent}
+      useCanteenCodes={school.use_canteen_codes}
     />
   );
 }

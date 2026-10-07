@@ -147,6 +147,7 @@ export async function saveProduct(_prev: ActionState, formData: FormData): Promi
     food_type: foodType,
     image_path: imagePath,
     is_active: formData.get("is_active") === "on",
+    preorder_only: formData.get("preorder_only") === "on",
     stock_mode: stockMode,
     stock_qty: stockQty,
     daily_limit: dailyLimit,

@@ -1,7 +1,10 @@
 import { Baby, CalendarClock, IdCard, UtensilsCrossed } from "lucide-react";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import type { School } from "@/components/school-picker";
 import { Children, type Child } from "./children";
+import { ParentRequests, type ParentRequest } from "./requests";
+import { WalletSection, type WalletBalance, type WalletTxn } from "./wallet";
 
 const STEPS = [
   { icon: Baby, title: "Add your children", text: "Link each child to your account once." },
@@ -13,11 +16,78 @@ export default async function ParentPage() {
   const profile = await requireRole(["parent"]);
   const firstName = profile.full_name.split(" ")[0] || "there";
   const supabase = await createClient();
-  const { data: students } = await supabase
-    .from("students")
-    .select("id, full_name, class_name, code")
-    .eq("parent_id", profile.id)
-    .order("created_at");
+  const { data: auth } = await supabase.auth.getClaims();
+  const email = typeof auth?.claims.email === "string" ? auth.claims.email : "";
+  const [
+    { data: studentRows },
+    { data: walletRows },
+    { data: txnRows },
+    { data: linkRows },
+    { data: allSchoolRows },
+    { data: requestRows },
+  ] = await Promise.all([
+    supabase
+      .from("students")
+      .select("id, full_name, class_name, code, id_card_number, school_id, wallet_allowed, wallet_daily_limit, school:schools(name, use_canteen_codes)")
+      .eq("parent_id", profile.id)
+      .order("created_at"),
+    supabase.from("wallets").select("school_id, balance").eq("parent_id", profile.id),
+    supabase
+      .from("wallet_transactions")
+      .select("id, type, amount, balance_after, payment_method, note, created_at, wallet:wallets!inner(parent_id, school:schools(name)), student:students(full_name)")
+      .eq("wallet.parent_id", profile.id)
+      .order("created_at", { ascending: false })
+      .limit(30),
+    supabase.from("parent_schools").select("school:schools(id, name, join_code)").eq("parent_id", profile.id),
+    supabase.rpc("list_schools"),
+    supabase
+      .from("support_requests")
+      .select("id, message, id_card_number, status, admin_reply, created_at, school:schools(name)")
+      .eq("parent_id", profile.id)
+      .order("created_at", { ascending: false })
+      .limit(10),
+  ]);
+
+  const allSchools = (allSchoolRows ?? []) as School[];
+  // The schools this parent is linked to, with their main school first.
+  const linkedSchools = ((linkRows ?? []) as unknown as { school: School | null }[])
+    .map((row) => row.school)
+    .filter((school): school is School => Boolean(school))
+    .sort((a, b) => (a.id === profile.school_id ? -1 : b.id === profile.school_id ? 1 : a.name.localeCompare(b.name)));
+
+  const students = ((studentRows ?? []) as unknown as (Child & { school_id: string })[]).map((child) => ({
+    ...child,
+    wallet_daily_limit: child.wallet_daily_limit === null ? null : Number(child.wallet_daily_limit),
+  }));
+
+  // One balance card per school the family uses (from their children and any existing wallets).
+  const schoolNames = new Map<string, string>([[profile.school_id, profile.school.name]]);
+  linkedSchools.forEach((school) => schoolNames.set(school.id, school.name));
+  students.forEach((child) => schoolNames.set(child.school_id, child.school?.name ?? profile.school.name));
+  const balanceBySchool = new Map(
+    ((walletRows ?? []) as { school_id: string; balance: number }[]).map((w) => [w.school_id, Number(w.balance)]),
+  );
+  const balances: WalletBalance[] = [
+    ...new Set([...linkedSchools.map((s) => s.id), ...students.map((c) => c.school_id), ...balanceBySchool.keys()]),
+  ].map(
+    (schoolId) => ({
+      school_id: schoolId,
+      school_name: schoolNames.get(schoolId) ?? "School",
+      balance: balanceBySchool.get(schoolId) ?? 0,
+    }),
+  );
+
+  type TxnRow = Omit<WalletTxn, "school_name" | "student_name"> & {
+    wallet: { school: { name: string } | null };
+    student: { full_name: string } | null;
+  };
+  const transactions: WalletTxn[] = ((txnRows ?? []) as unknown as TxnRow[]).map((t) => ({
+    ...t,
+    amount: Number(t.amount),
+    balance_after: Number(t.balance_after),
+    school_name: t.wallet.school?.name ?? "",
+    student_name: t.student?.full_name ?? null,
+  }));
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6">
@@ -34,7 +104,18 @@ export default async function ParentPage() {
         <UtensilsCrossed className="absolute -right-6 -bottom-8 h-56 w-56 rotate-12 text-white/15" />
       </section>
 
-      <Children students={(students ?? []) as Child[]} />
+      <Children
+        students={students}
+        homeSchool={profile.school.name}
+        linkedSchools={linkedSchools}
+        allSchools={allSchools}
+        phone={profile.phone ?? ""}
+        email={email}
+      />
+
+      <ParentRequests requests={(requestRows ?? []) as unknown as ParentRequest[]} />
+
+      {students.length > 0 && <WalletSection balances={balances} transactions={transactions} />}
 
       <section className="mt-10">
         <h2 className="text-xl font-bold text-slate-900">Today&apos;s menu</h2>

@@ -1,18 +1,10 @@
-import { Search, Trash2 } from "lucide-react";
-import { ConfirmButton } from "@/components/confirm-button";
+import { Search } from "lucide-react";
 import { Card, PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
+import { getSchool } from "@/lib/school";
 import { createClient } from "@/lib/supabase/server";
-import { deleteStudent } from "./actions";
 import { AddStudentForm } from "./add-student-form";
-
-type StudentRow = {
-  id: string;
-  full_name: string;
-  class_name: string;
-  code: string;
-  parent: { full_name: string; phone: string | null } | null;
-};
+import { StudentRow, type StudentRowData } from "./student-row";
 
 export default async function StudentsPage({ searchParams }: PageProps<"/admin/students">) {
   await requireRole(["admin"]);
@@ -20,14 +12,15 @@ export default async function StudentsPage({ searchParams }: PageProps<"/admin/s
   const search = typeof q === "string" ? q.trim().replace(/[%_,()]/g, "") : "";
 
   const supabase = await createClient();
+  const school = await getSchool();
   let query = supabase
     .from("students")
-    .select("id, full_name, class_name, code, parent:profiles(full_name, phone)")
+    .select("id, full_name, class_name, code, id_card_number, parent:profiles(full_name, phone)")
     .order("class_name")
     .order("full_name");
-  if (search) query = query.or(`full_name.ilike.%${search}%,class_name.ilike.%${search}%,code.eq.${search.toUpperCase()}`);
+  if (search) query = query.or(`full_name.ilike.%${search}%,class_name.ilike.%${search}%,code.eq.${search.toUpperCase()},id_card_number.ilike.${search}`);
   const { data } = await query;
-  const students = (data ?? []) as unknown as StudentRow[];
+  const students = (data ?? []) as unknown as StudentRowData[];
 
   return (
     <>
@@ -48,7 +41,7 @@ export default async function StudentsPage({ searchParams }: PageProps<"/admin/s
             <input
               name="q"
               defaultValue={search}
-              placeholder="Search name, class or code"
+              placeholder="Search name, class or ID number"
               className="w-full rounded-xl border border-slate-300 bg-white py-2 pl-9 pr-3 text-sm outline-none focus:border-brand-500"
             />
           </form>
@@ -64,40 +57,15 @@ export default async function StudentsPage({ searchParams }: PageProps<"/admin/s
                 <tr>
                   <th className="px-5 py-3 font-semibold">Name</th>
                   <th className="px-5 py-3 font-semibold">Class</th>
-                  <th className="px-5 py-3 font-semibold">Code</th>
+                  <th className="px-5 py-3 font-semibold">ID card</th>
+                  {school.use_canteen_codes && <th className="px-5 py-3 font-semibold">Canteen code</th>}
                   <th className="px-5 py-3 font-semibold">Parent</th>
                   <th className="px-5 py-3" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {students.map((student) => (
-                  <tr key={student.id} className="hover:bg-slate-50/60">
-                    <td className="px-5 py-3 font-medium text-slate-900">{student.full_name}</td>
-                    <td className="px-5 py-3 text-slate-600">{student.class_name || "—"}</td>
-                    <td className="px-5 py-3 font-mono font-semibold tracking-widest">{student.code}</td>
-                    <td className="px-5 py-3 text-slate-600">
-                      {student.parent ? (
-                        <>
-                          {student.parent.full_name}
-                          {student.parent.phone && <span className="block text-xs text-slate-400">{student.parent.phone}</span>}
-                        </>
-                      ) : (
-                        <span className="text-slate-400">Not linked</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-3 text-right">
-                      <form action={deleteStudent}>
-                        <input type="hidden" name="id" value={student.id} />
-                        <ConfirmButton
-                          message={`Remove ${student.full_name}? Their past orders will be kept.`}
-                          className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
-                          title="Remove student"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </ConfirmButton>
-                      </form>
-                    </td>
-                  </tr>
+                  <StudentRow key={student.id} student={student} showCode={school.use_canteen_codes} />
                 ))}
               </tbody>
             </table>

@@ -479,6 +479,18 @@ export function ProductForm({
                 <span className="block text-sm text-slate-500">Untick to hide this item from parents and the counter.</span>
               </span>
             </label>
+            <label className="mt-4 flex cursor-pointer items-start gap-3 border-t border-slate-100 pt-4">
+              <input
+                type="checkbox"
+                name="preorder_only"
+                defaultChecked={product?.preorder_only ?? false}
+                className="mt-1 h-4 w-4 accent-brand-600"
+              />
+              <span>
+                <span className="block font-semibold text-slate-900">Pre-order only</span>
+                <span className="block text-sm text-slate-500">Only parents can order it in advance. It won&apos;t appear at the counter.</span>
+              </span>
+            </label>
           </Card>
 
           <Button type="submit" disabled={pending} className="w-full py-3">
