@@ -4,6 +4,7 @@ import { ArrowLeft, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import type { Category, OptionGroupInput, Product } from "@/lib/menu";
+import { getSchool } from "@/lib/school";
 import { createClient } from "@/lib/supabase/server";
 import { deleteProduct } from "../actions";
 import { ProductForm } from "../product-form";
@@ -15,6 +16,7 @@ export default async function EditProductPage({ params }: PageProps<"/kitchen/[i
   await requireRole(["admin", "canteen_staff"]);
   const { id } = await params;
   const supabase = await createClient();
+  const school = await getSchool();
 
   const [{ data: product }, { data: categories }, { data: groupRows }] = await Promise.all([
     supabase.from("products").select("*").eq("id", id).maybeSingle(),
@@ -51,9 +53,15 @@ export default async function EditProductPage({ params }: PageProps<"/kitchen/[i
         </form>
       </div>
       <ProductForm
-        product={{ ...(product as Product), price: Number(product.price) }}
+        product={{
+          ...(product as Product),
+          price: Number(product.price),
+          gst_rate: product.gst_rate === null ? null : Number(product.gst_rate),
+        }}
         groups={groups}
         categories={(categories ?? []) as Category[]}
+        defaultGstRate={school.gst_rate}
+        schoolHours={school}
       />
     </>
   );

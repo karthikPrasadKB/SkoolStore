@@ -1,5 +1,7 @@
 import { Baby, CalendarClock, IdCard, UtensilsCrossed } from "lucide-react";
 import { requireRole } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
+import { Children, type Child } from "./children";
 
 const STEPS = [
   { icon: Baby, title: "Add your children", text: "Link each child to your account once." },
@@ -10,6 +12,12 @@ const STEPS = [
 export default async function ParentPage() {
   const profile = await requireRole(["parent"]);
   const firstName = profile.full_name.split(" ")[0] || "there";
+  const supabase = await createClient();
+  const { data: students } = await supabase
+    .from("students")
+    .select("id, full_name, class_name, code")
+    .eq("parent_id", profile.id)
+    .order("created_at");
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6">
@@ -25,6 +33,8 @@ export default async function ParentPage() {
         </div>
         <UtensilsCrossed className="absolute -right-6 -bottom-8 h-56 w-56 rotate-12 text-white/15" />
       </section>
+
+      <Children students={(students ?? []) as Child[]} />
 
       <section className="mt-10">
         <h2 className="text-xl font-bold text-slate-900">Today&apos;s menu</h2>

@@ -1,7 +1,9 @@
 import { FOOD_TYPE_LABELS, type FoodType } from "@/lib/menu";
 
 // The standard Indian food mark: green dot for veg, brown triangle for non-veg, yellow dot for egg.
+// Non-food items (stationery etc.) show nothing.
 export function FoodTypeMark({ type, className = "h-4 w-4" }: { type: FoodType; className?: string }) {
+  if (type === "none") return null;
   const color = type === "veg" ? "#16a34a" : type === "non_veg" ? "#92400e" : "#ca8a04";
   return (
     <svg viewBox="0 0 16 16" className={`shrink-0 ${className}`} role="img" aria-label={FOOD_TYPE_LABELS[type]}>

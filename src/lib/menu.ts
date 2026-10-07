@@ -1,6 +1,7 @@
 // Shared menu types and helpers. Safe to use in browser components.
 
-export type FoodType = "veg" | "non_veg" | "egg";
+// "none" is for non-food items like stationery: no veg / non-veg mark.
+export type FoodType = "veg" | "non_veg" | "egg" | "none";
 export type StockMode = "count" | "daily_limit" | "unlimited";
 
 export type Category = { id: string; name: string; sort_order: number };
@@ -19,6 +20,7 @@ export type Product = {
   name: string;
   description: string;
   price: number;
+  gst_rate: number | null;
   food_type: FoodType;
   image_path: string | null;
   is_active: boolean;
@@ -35,6 +37,7 @@ export const FOOD_TYPE_LABELS: Record<FoodType, string> = {
   veg: "Veg",
   non_veg: "Non-veg",
   egg: "Egg",
+  none: "Not food",
 };
 
 export const STOCK_MODE_LABELS: Record<StockMode, { title: string; hint: string }> = {
@@ -61,13 +64,30 @@ export function imageUrl(path: string | null) {
   return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/product-images/${path}`;
 }
 
-function formatTime(time: string) {
+export type SchoolHours = {
+  weekday_open: string;
+  weekday_close: string;
+  saturday_open: string | null;
+  saturday_close: string | null;
+};
+
+// e.g. "Mon–Fri 8:00 AM – 3:30 PM · Sat 8:00 AM – 12:30 PM"
+export function schoolHoursText(hours: SchoolHours) {
+  const weekdays = `Mon–Fri ${formatTime(hours.weekday_open)} – ${formatTime(hours.weekday_close)}`;
+  const saturday =
+    hours.saturday_open && hours.saturday_close
+      ? `Sat ${formatTime(hours.saturday_open)} – ${formatTime(hours.saturday_close)}`
+      : "Sat closed";
+  return `${weekdays} · ${saturday}`;
+}
+
+export function formatTime(time: string) {
   const [h, m] = time.split(":").map(Number);
   const suffix = h >= 12 ? "PM" : "AM";
   return `${h % 12 || 12}:${String(m).padStart(2, "0")} ${suffix}`;
 }
 
-// e.g. "Mon–Fri · 8:00 AM – 11:00 AM" or "Every day"
+// e.g. "Mon–Fri · 8:00 AM – 11:00 AM" or "Every day · School hours"
 export function availabilityText(product: Pick<Product, "available_days" | "available_from" | "available_until">) {
   const days = [...product.available_days].sort();
   let dayText = "Every day";
@@ -80,7 +100,7 @@ export function availabilityText(product: Pick<Product, "available_days" | "avai
   }
 
   const { available_from: from, available_until: until } = product;
-  if (!from && !until) return dayText;
+  if (!from && !until) return `${dayText} · School hours`;
   const timeText = from && until
     ? `${formatTime(from)} – ${formatTime(until)}`
     : from

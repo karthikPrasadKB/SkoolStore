@@ -2,24 +2,32 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Package, Receipt, type LucideIcon } from "lucide-react";
+import { GraduationCap, History, LayoutDashboard, Package, Receipt, Settings, type LucideIcon } from "lucide-react";
 import { areasFor, type Role } from "@/lib/roles";
 
 const ICONS: Record<string, LucideIcon> = {
   "/admin": LayoutDashboard,
   "/kitchen": Package,
   "/counter": Receipt,
+  "/counter/sales": History,
+  "/admin/students": GraduationCap,
+  "/admin/settings": Settings,
 };
 
 // Sidebar links on desktop, a scrollable strip on phones.
 export function StaffNav({ role, layout }: { role: Role; layout: "sidebar" | "strip" }) {
   const pathname = usePathname();
+  const areas = areasFor(role);
+  // Highlight the most specific matching link, so /admin/settings doesn't also light up /admin.
+  const activeHref = areas
+    .filter((area) => pathname === area.href || pathname.startsWith(`${area.href}/`))
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 
   return (
     <nav className={layout === "sidebar" ? "space-y-1" : "flex gap-1 overflow-x-auto"}>
-      {areasFor(role).map((area) => {
+      {areas.map((area) => {
         const Icon = ICONS[area.href] ?? LayoutDashboard;
-        const active = pathname.startsWith(area.href);
+        const active = area.href === activeHref;
         return (
           <Link
             key={area.href}

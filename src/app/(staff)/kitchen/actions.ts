@@ -70,23 +70,55 @@ export async function saveProduct(_prev: ActionState, formData: FormData): Promi
   const dailyLimit = wholeNumber(formData, "daily_limit");
   const lowStock = wholeNumber(formData, "low_stock_threshold");
   const days = formData.getAll("days").map(Number).filter((d) => Number.isInteger(d) && d >= 0 && d <= 6);
-  const from = text(formData, "available_from") || null;
-  const until = text(formData, "available_until") || null;
+  // "All day" = during school hours, stored as no time window.
+  const customTime = text(formData, "time_mode") === "custom";
+  const from = customTime ? text(formData, "available_from") || null : null;
+  const until = customTime ? text(formData, "available_until") || null : null;
 
   if (!name) return { error: "Please enter the item name." };
   if (!Number.isFinite(price) || price < 0) return { error: "Please enter a valid price." };
-  if (!["veg", "non_veg", "egg"].includes(foodType)) return { error: "Please choose veg, non-veg or egg." };
+  if (!["veg", "non_veg", "egg", "none"].includes(foodType)) {
+    return { error: "Please choose veg, non-veg, egg or not food." };
+  }
   if (!["count", "daily_limit", "unlimited"].includes(stockMode)) return { error: "Please choose a stock type." };
   if (stockQty === null || dailyLimit === null || lowStock === null) {
     return { error: "Stock numbers must be whole numbers, 0 or more." };
   }
   if (days.length === 0) return { error: "Pick at least one day the item is sold, or untick 'Show on menu' to hide it." };
+  if (customTime && (!from || !until)) return { error: "Enter both times, or choose 'All day'." };
   if (from && until && from >= until) return { error: "The 'available until' time must be after the 'from' time." };
+
+  const gstText = text(formData, "gst_rate");
+  const gstRate = gstText === "" ? null : Number(gstText);
+  if (gstRate !== null && (!Number.isFinite(gstRate) || gstRate < 0 || gstRate > 100)) {
+    return { error: "GST rate must be between 0 and 100, or empty to use the school's rate." };
+  }
 
   const groups = parseOptionGroups(text(formData, "options_json"));
   if (typeof groups === "string") return { error: groups };
 
   const supabase = await createClient();
+
+  // "+ New category…" creates the category (or reuses one with the same name).
+  let categoryId = text(formData, "category_id") || null;
+  if (categoryId === "__new__") {
+    const newName = text(formData, "new_category").slice(0, 60);
+    if (!newName) return { error: "Please type a name for the new category." };
+
+    const { data: existing } = await supabase.from("categories").select("id, name");
+    const match = (existing ?? []).find((c) => c.name.toLowerCase() === newName.toLowerCase());
+    if (match) {
+      categoryId = match.id;
+    } else {
+      const { data: created, error } = await supabase
+        .from("categories")
+        .insert({ school_id: profile.school_id, name: newName, sort_order: existing?.length ?? 0 })
+        .select("id")
+        .single();
+      if (error) return { error: `Couldn't create the category: ${error.message}` };
+      categoryId = created.id;
+    }
+  }
 
   // Upload a new photo if one was chosen.
   const currentImage = text(formData, "current_image_path") || null;
@@ -107,10 +139,11 @@ export async function saveProduct(_prev: ActionState, formData: FormData): Promi
 
   const row = {
     school_id: profile.school_id,
-    category_id: text(formData, "category_id") || null,
+    category_id: categoryId,
     name: name.slice(0, 100),
     description: text(formData, "description").slice(0, 500),
     price: Math.round(price * 100) / 100,
+    gst_rate: gstRate,
     food_type: foodType,
     image_path: imagePath,
     is_active: formData.get("is_active") === "on",

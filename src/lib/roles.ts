@@ -11,9 +11,12 @@ export const ROLE_LABELS: Record<Role, string> = {
 
 // Each area of the app and which roles may open it.
 export const AREAS = [
-  { href: "/admin", label: "Admin", roles: ["admin"] },
-  { href: "/kitchen", label: "Menu & stock", roles: ["admin", "canteen_staff", "counter_staff"] },
+  { href: "/admin", label: "Dashboard", roles: ["admin"] },
   { href: "/counter", label: "Counter", roles: ["admin", "canteen_staff", "counter_staff"] },
+  { href: "/counter/sales", label: "Today's sales", roles: ["admin", "canteen_staff", "counter_staff"] },
+  { href: "/kitchen", label: "Menu & stock", roles: ["admin", "canteen_staff", "counter_staff"] },
+  { href: "/admin/students", label: "Students", roles: ["admin"] },
+  { href: "/admin/settings", label: "Settings", roles: ["admin"] },
   { href: "/parent", label: "My orders", roles: ["parent"] },
 ] as const satisfies { href: string; label: string; roles: Role[] }[];
 

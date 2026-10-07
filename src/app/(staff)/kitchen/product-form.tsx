@@ -2,18 +2,20 @@
 
 import { useActionState, useState } from "react";
 import Image from "next/image";
-import { ImagePlus, Plus, Trash2, X } from "lucide-react";
+import { ImagePlus, Package, Plus, Trash2, X } from "lucide-react";
 import { FoodTypeMark } from "@/components/food-type-mark";
 import { Alert, Button, Card, Field } from "@/components/ui";
 import {
   DAYS,
   FOOD_TYPE_LABELS,
   imageUrl,
+  schoolHoursText,
   STOCK_MODE_LABELS,
   type Category,
   type FoodType,
   type OptionGroupInput,
   type Product,
+  type SchoolHours,
   type StockMode,
 } from "@/lib/menu";
 import { saveProduct, type ActionState } from "./actions";
@@ -51,13 +53,26 @@ export function ProductForm({
   product,
   groups: initialGroups,
   categories,
+  defaultGstRate,
+  schoolHours,
 }: {
   product?: Product;
   groups: OptionGroupInput[];
   categories: Category[];
+  defaultGstRate: number;
+  schoolHours: SchoolHours;
 }) {
   const [state, formAction, pending] = useActionState<ActionState, FormData>(saveProduct, {});
   const [stockMode, setStockMode] = useState<StockMode>(product?.stock_mode ?? "unlimited");
+  const [categoryChoice, setCategoryChoice] = useState(product?.category_id ?? "");
+  // The days the school is open: Mon–Fri, plus Saturday unless it's closed.
+  const schoolDays = schoolHours.saturday_open ? [1, 2, 3, 4, 5, 6] : [1, 2, 3, 4, 5];
+  const [days, setDays] = useState<number[]>(
+    product?.available_days.length ? product.available_days : schoolDays,
+  );
+  const [timeMode, setTimeMode] = useState<"school" | "custom">(
+    product?.available_from || product?.available_until ? "custom" : "school",
+  );
   const [groups, setGroups] = useState<OptionGroupInput[]>(initialGroups);
   const [photo, setPhoto] = useState<Blob | null>(null);
   const [preview, setPreview] = useState<string | null>(imageUrl(product?.image_path ?? null));
@@ -92,7 +107,6 @@ export function ProductForm({
     formAction(formData);
   }
 
-  const selectedDays = product?.available_days.length ? product.available_days : [0, 1, 2, 3, 4, 5, 6];
 
   return (
     <form action={submit} className="space-y-6">
@@ -131,20 +145,51 @@ export function ProductForm({
                   required
                   placeholder="40"
                 />
-                <label className="block">
-                  <span className="mb-1.5 block text-sm font-semibold text-slate-700">Category</span>
-                  <select name="category_id" defaultValue={product?.category_id ?? ""} className={selectClass}>
-                    <option value="">No category</option>
-                    {categories.map((category) => (
-                      <option key={category.id} value={category.id}>
-                        {category.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                <div className="space-y-2">
+                  <label className="block">
+                    <span className="mb-1.5 block text-sm font-semibold text-slate-700">Category</span>
+                    <select
+                      name="category_id"
+                      value={categoryChoice}
+                      onChange={(e) => setCategoryChoice(e.target.value)}
+                      className={selectClass}
+                    >
+                      <option value="">No category</option>
+                      {categories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))}
+                      <option value="__new__">+ New category…</option>
+                    </select>
+                  </label>
+                  {categoryChoice === "__new__" && (
+                    <input
+                      name="new_category"
+                      required
+                      maxLength={60}
+                      autoFocus
+                      placeholder="New category name, e.g. Stationery"
+                      className={selectClass}
+                    />
+                  )}
+                </div>
+              </div>
+              <div className="sm:w-1/2">
+                <Field
+                  label="GST rate (%)"
+                  name="gst_rate"
+                  type="number"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  defaultValue={product?.gst_rate ?? ""}
+                  placeholder={`School default (${defaultGstRate}%)`}
+                  hint="Leave empty to use the school's rate. The price above includes GST."
+                />
               </div>
               <div>
-                <span className="mb-1.5 block text-sm font-semibold text-slate-700">Food type</span>
+                <span className="mb-1.5 block text-sm font-semibold text-slate-700">Type</span>
                 <div className="flex flex-wrap gap-2">
                   {(Object.keys(FOOD_TYPE_LABELS) as FoodType[]).map((type) => (
                     <label key={type} className="cursor-pointer">
@@ -156,7 +201,7 @@ export function ProductForm({
                         className="peer sr-only"
                       />
                       <span className="flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition peer-checked:border-brand-500 peer-checked:bg-brand-50 peer-checked:text-brand-700">
-                        <FoodTypeMark type={type} />
+                        {type === "none" ? <Package className="h-4 w-4 text-slate-500" /> : <FoodTypeMark type={type} />}
                         {FOOD_TYPE_LABELS[type]}
                       </span>
                     </label>
@@ -286,7 +331,7 @@ export function ProductForm({
             </div>
           </Section>
 
-          <Section title="When is it sold?" hint="Leave all days ticked and times empty to sell it all day, every day.">
+          <Section title="When is it sold?">
             <span className="mb-2 block text-sm font-semibold text-slate-700">Days</span>
             <div className="flex flex-wrap gap-2">
               {DAYS.map((day, index) => (
@@ -295,7 +340,12 @@ export function ProductForm({
                     type="checkbox"
                     name="days"
                     value={index}
-                    defaultChecked={selectedDays.includes(index)}
+                    checked={days.includes(index)}
+                    onChange={(e) =>
+                      setDays((current) =>
+                        e.target.checked ? [...current, index] : current.filter((d) => d !== index),
+                      )
+                    }
                     className="peer sr-only"
                   />
                   <span className="block w-14 rounded-xl border border-slate-300 py-2 text-center text-sm font-semibold text-slate-500 transition peer-checked:border-brand-500 peer-checked:bg-brand-600 peer-checked:text-white">
@@ -304,10 +354,43 @@ export function ProductForm({
                 </label>
               ))}
             </div>
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <Field label="Available from (optional)" name="available_from" type="time" defaultValue={product?.available_from?.slice(0, 5)} />
-              <Field label="Available until (optional)" name="available_until" type="time" defaultValue={product?.available_until?.slice(0, 5)} />
+            <span className="mb-2 mt-6 block text-sm font-semibold text-slate-700">Time</span>
+            <input type="hidden" name="time_mode" value={timeMode} />
+            <div className="grid gap-2 sm:grid-cols-2">
+              {(
+                [
+                  { value: "school", title: "All day", hint: `During school hours: ${schoolHoursText(schoolHours)}` },
+                  { value: "custom", title: "Specific time", hint: "e.g. breakfast only from 8:00 to 10:00 AM" },
+                ] as const
+              ).map((option) => (
+                <label
+                  key={option.value}
+                  className={`flex cursor-pointer gap-3 rounded-xl border p-3 transition ${
+                    timeMode === option.value ? "border-brand-500 bg-brand-50" : "border-slate-200 hover:bg-slate-50"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    checked={timeMode === option.value}
+                    onChange={() => setTimeMode(option.value)}
+                    // "All day" means whenever the school is open, so tick the school days
+                    // (also when clicked again after changing the days).
+                    onClick={() => option.value === "school" && setDays(schoolDays)}
+                    className="mt-1 accent-brand-600"
+                  />
+                  <span>
+                    <span className="block text-sm font-semibold text-slate-900">{option.title}</span>
+                    <span className="block text-xs text-slate-500">{option.hint}</span>
+                  </span>
+                </label>
+              ))}
             </div>
+            {timeMode === "custom" && (
+              <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                <Field label="From" name="available_from" type="time" defaultValue={product?.available_from?.slice(0, 5)} required />
+                <Field label="Until" name="available_until" type="time" defaultValue={product?.available_until?.slice(0, 5)} required />
+              </div>
+            )}
           </Section>
         </div>
 

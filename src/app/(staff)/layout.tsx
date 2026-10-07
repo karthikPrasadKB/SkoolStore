@@ -70,7 +70,10 @@ export default async function StaffLayout({ children }: { children: React.ReactN
             <StaffNav role={profile.role} layout="strip" />
           </div>
         </header>
-        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 md:px-10">{children}</main>
+        {/* Pages marked data-fullbleed (like the counter) use the whole width with no padding. */}
+        <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 md:px-10 has-[[data-fullbleed]]:max-w-none has-[[data-fullbleed]]:p-0">
+          {children}
+        </main>
       </div>
     </div>
   );
