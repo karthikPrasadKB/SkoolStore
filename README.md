@@ -8,7 +8,7 @@ School canteen ordering and stock management. Built with Next.js, Tailwind CSS a
 |---|---|
 | School admin | Admin, Menu & stock, Counter |
 | Canteen staff | Menu & stock, Counter |
-| Counter staff | Counter |
+| Counter staff | Counter, Menu & stock (update stock and show/hide items only) |
 | Parent | My orders |
 
 Everyone signs up as a **parent** using the school's join code. The school admin then changes staff roles on the Admin page.
