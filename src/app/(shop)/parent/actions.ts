@@ -80,7 +80,21 @@ export async function saveChildSettings(_prev: ChildState, formData: FormData): 
       duplicateId: error.code === "23505" ? (idCard.value ?? undefined) : undefined,
     };
   }
-  revalidatePath("/parent");
+  // Moving to a different school is checked by the database (no upcoming pre-orders, ID number free there).
+  const schoolCode = String(formData.get("school_code") ?? "").trim();
+  if (schoolCode && schoolCode !== String(formData.get("current_school_code") ?? "")) {
+    const { error: moveError } = await supabase.rpc("change_child_school", {
+      p_student_id: String(formData.get("id")),
+      p_school_code: schoolCode,
+    });
+    if (moveError) {
+      return moveError.message.includes("already has ID card number")
+        ? { error: moveError.message, duplicateId: idCard.value ?? undefined }
+        : { error: moveError.message };
+    }
+  }
+
+  revalidatePath("/parent", "layout");
   return { saved: true };
 }
 
@@ -111,4 +125,38 @@ export async function sendSupportRequest(_prev: RequestState, formData: FormData
   if (error) return { error: "Sorry, the message couldn't be sent. Please try again." };
   revalidatePath("/parent");
   return { sent: true };
+}
+
+export type PreorderInput = {
+  student_id: string;
+  pickup_date: string;
+  items: { product_id: string; quantity: number; option_ids: string[] }[];
+};
+
+export type PreorderResult = { ok: true; bill_number: number; total: number } | { ok: false; error: string };
+
+// Places a pre-order for a child, paid from the family wallet at the child's school.
+export async function placePreorder(order: PreorderInput): Promise<PreorderResult> {
+  await requireRole(["parent"]);
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("create_preorder", {
+    p_student_id: order.student_id,
+    p_pickup_date: order.pickup_date,
+    p_items: order.items,
+    p_payment_method: "wallet",
+  });
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/parent", "layout");
+  return { ok: true, bill_number: data.bill_number, total: Number(data.total) };
+}
+
+export type CancelState = { error?: string };
+
+export async function cancelPreorder(_prev: CancelState, formData: FormData): Promise<CancelState> {
+  await requireRole(["parent"]);
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("cancel_preorder", { p_order_id: String(formData.get("order_id")) });
+  if (error) return { error: error.message };
+  revalidatePath("/parent", "layout");
+  return {};
 }

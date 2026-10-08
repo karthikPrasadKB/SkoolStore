@@ -30,13 +30,14 @@ const STAFF_ROLES = ["canteen_staff", "counter_staff", "admin"] as const;
 async function findOwnStaff(memberId: string, schoolId: string) {
   const supabase = await createClient();
   const { data } = await supabase
-    .from("profiles")
-    .select("id, role, school_id, username, full_name")
-    .eq("id", memberId)
+    .from("school_memberships")
+    .select("role, profile:profiles(id, username, full_name)")
+    .eq("profile_id", memberId)
+    .eq("school_id", schoolId)
     .maybeSingle();
-  return data && data.role !== "parent" && data.school_id === schoolId ? data : null;
+  const member = data as unknown as { role: Role; profile: { id: string; username: string | null; full_name: string } } | null;
+  return member?.profile ? { ...member.profile, role: member.role } : null;
 }
-
 
 export type StaffState = { error?: string; added?: string };
 
@@ -85,6 +86,11 @@ export async function addStaff(_prev: StaffState, formData: FormData): Promise<S
     .update({ role, username, contact_email: contactEmail || null })
     .eq("id", data.user.id);
   if (profileError) return { error: `Account created, but saving their details failed: ${profileError.message}` };
+
+  const { error: memberError } = await admin
+    .from("school_memberships")
+    .insert({ profile_id: data.user.id, school_id: school.id, role });
+  if (memberError) return { error: `Account created, but adding them to the school failed: ${memberError.message}` };
 
   revalidatePath("/admin");
   return { added: `${fullName} can now log in with username "${username}" and the temporary password.` };
@@ -173,9 +179,14 @@ export async function deleteStaff(formData: FormData) {
   const member = await findOwnStaff(memberId, profile.school_id);
   if (!member) return;
 
-  if (member.username) {
-    const admin = createAdminClient();
-    if (admin) await admin.auth.admin.deleteUser(memberId);
+  const admin = createAdminClient();
+  const { count } = admin
+    ? await admin.from("school_memberships").select("school_id", { count: "exact", head: true }).eq("profile_id", memberId)
+    : { count: null };
+
+  // Delete the whole account only if it's a username account that works at no other school.
+  if (member.username && admin && count === 1) {
+    await admin.auth.admin.deleteUser(memberId);
   } else {
     const supabase = await createClient();
     await supabase.rpc("set_member_role", { member_id: memberId, new_role: "parent" });

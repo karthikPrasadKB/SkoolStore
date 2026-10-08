@@ -136,6 +136,9 @@ export default async function SalesPage() {
                     <tr key={order.id} className={cancelled ? "text-slate-400" : "hover:bg-slate-50/60"}>
                       <td className="px-5 py-3 font-semibold">
                         #{order.bill_number}
+                        {order.source === "preorder" && (
+                          <span className="ml-2 rounded-full bg-accent-50 px-2 py-0.5 text-xs font-semibold text-accent-600">Pre-order</span>
+                        )}
                         {cancelled && <span className="ml-2 rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-600">Cancelled</span>}
                         {cancelled && (
                           <span className="mt-1 block max-w-56 text-xs font-normal text-slate-500">

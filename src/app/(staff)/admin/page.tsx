@@ -30,14 +30,18 @@ export default async function AdminPage() {
   // Staff only: admins don't need a list of every parent.
   const [{ data }, { count: studentCount }] = await Promise.all([
     supabase
-      .from("profiles")
-      .select("id, full_name, username, contact_email, phone, role, created_at")
+      .from("school_memberships")
+      .select("role, created_at, profile:profiles(id, full_name, username, contact_email, phone)")
       .eq("school_id", profile.school_id)
-      .neq("role", "parent")
       .order("created_at"),
     supabase.from("students").select("id", { count: "exact", head: true }),
   ]);
-  const members = (data ?? []) as Member[];
+  // Staff of this school, with their role here (it can differ at other schools).
+  const members: Member[] = (
+    (data ?? []) as unknown as { role: Role; created_at: string; profile: Omit<StaffMember, "role"> | null }[]
+  )
+    .filter((m) => m.profile)
+    .map((m) => ({ ...m.profile!, role: m.role, created_at: m.created_at }));
   const canAddStaff = createAdminClient() !== null;
   const count = (...roles: Role[]) => members.filter((m) => roles.includes(m.role)).length;
 

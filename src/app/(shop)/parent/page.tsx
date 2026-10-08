@@ -1,5 +1,8 @@
 import { Baby, CalendarClock, IdCard, UtensilsCrossed } from "lucide-react";
+import Link from "next/link";
 import { requireRole } from "@/lib/auth";
+import { formatDay, todayInIndia } from "@/lib/dates";
+import { formatINR } from "@/lib/menu";
 import { createClient } from "@/lib/supabase/server";
 import type { School } from "@/components/school-picker";
 import { Children, type Child } from "./children";
@@ -24,22 +27,35 @@ export default async function ParentPage() {
     { data: txnRows },
     { data: linkRows },
     { data: allSchoolRows },
+    { data: upcomingRows },
     { data: requestRows },
   ] = await Promise.all([
     supabase
       .from("students")
-      .select("id, full_name, class_name, code, id_card_number, school_id, wallet_allowed, wallet_daily_limit, school:schools(name, use_canteen_codes)")
+      .select(
+        "id, full_name, class_name, code, id_card_number, school_id, wallet_allowed, wallet_daily_limit, school:schools(name, join_code, use_canteen_codes)",
+      )
       .eq("parent_id", profile.id)
       .order("created_at"),
     supabase.from("wallets").select("school_id, balance").eq("parent_id", profile.id),
     supabase
       .from("wallet_transactions")
-      .select("id, type, amount, balance_after, payment_method, note, created_at, wallet:wallets!inner(parent_id, school:schools(name)), student:students(full_name)")
+      .select(
+        "id, type, amount, balance_after, payment_method, note, created_at, wallet:wallets!inner(parent_id, school:schools(name)), student:students(full_name)",
+      )
       .eq("wallet.parent_id", profile.id)
       .order("created_at", { ascending: false })
       .limit(30),
     supabase.from("parent_schools").select("school:schools(id, name, join_code)").eq("parent_id", profile.id),
     supabase.rpc("list_schools"),
+    supabase
+      .from("orders")
+      .select("id, pickup_date, total, student:students(full_name)")
+      .eq("source", "preorder")
+      .in("status", ["placed", "paid", "packed"])
+      .gte("pickup_date", todayInIndia())
+      .order("pickup_date")
+      .limit(5),
     supabase
       .from("support_requests")
       .select("id, message, id_card_number, status, admin_reply, created_at, school:schools(name)")
@@ -69,13 +85,11 @@ export default async function ParentPage() {
   );
   const balances: WalletBalance[] = [
     ...new Set([...linkedSchools.map((s) => s.id), ...students.map((c) => c.school_id), ...balanceBySchool.keys()]),
-  ].map(
-    (schoolId) => ({
-      school_id: schoolId,
-      school_name: schoolNames.get(schoolId) ?? "School",
-      balance: balanceBySchool.get(schoolId) ?? 0,
-    }),
-  );
+  ].map((schoolId) => ({
+    school_id: schoolId,
+    school_name: schoolNames.get(schoolId) ?? "School",
+    balance: balanceBySchool.get(schoolId) ?? 0,
+  }));
 
   type TxnRow = Omit<WalletTxn, "school_name" | "student_name"> & {
     wallet: { school: { name: string } | null };
@@ -89,6 +103,14 @@ export default async function ParentPage() {
     student_name: t.student?.full_name ?? null,
   }));
 
+  const today = todayInIndia();
+  const upcoming = (upcomingRows ?? []) as unknown as {
+    id: string;
+    pickup_date: string;
+    total: number;
+    student: { full_name: string } | null;
+  }[];
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-6">
       <section className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-accent-500 via-accent-400 to-amber-300 px-6 py-10 text-white sm:px-10 sm:py-14">
@@ -97,12 +119,42 @@ export default async function ParentPage() {
           <h1 className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">
             What&apos;s for lunch at {profile.school.name}?
           </h1>
-          <p className="mt-3 text-accent-50">
-            Fresh food from your school canteen, ready when your child is.
-          </p>
+          <p className="mt-3 text-accent-50">Fresh food from your school canteen, ready when your child is.</p>
+          {students.length > 0 && (
+            <Link
+              href="/parent/order"
+              className="mt-6 inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 font-bold text-accent-600 shadow-sm hover:bg-accent-50"
+            >
+              <UtensilsCrossed className="h-5 w-5" /> Order food
+            </Link>
+          )}
         </div>
         <UtensilsCrossed className="absolute -right-6 -bottom-8 h-56 w-56 rotate-12 text-white/15" />
       </section>
+
+      {upcoming.length > 0 && (
+        <section className="mt-8 rounded-2xl border border-slate-200 p-5">
+          <div className="flex items-center justify-between">
+            <h2 className="font-bold text-slate-900">Coming up</h2>
+            <Link href="/parent/orders" className="text-sm font-semibold text-accent-600 hover:underline">
+              All orders →
+            </Link>
+          </div>
+          <ul className="mt-3 divide-y divide-slate-100">
+            {upcoming.map((order) => (
+              <li key={order.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                <span>
+                  <span className="font-semibold text-slate-900">
+                    {order.pickup_date === today ? "Today" : formatDay(order.pickup_date)}
+                  </span>
+                  <span className="text-slate-500"> · {order.student?.full_name.split(" ")[0]}</span>
+                </span>
+                <span className="font-semibold">{formatINR(Number(order.total))}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <Children
         students={students}
@@ -117,28 +169,19 @@ export default async function ParentPage() {
 
       {students.length > 0 && <WalletSection balances={balances} transactions={transactions} />}
 
-      <section className="mt-10">
-        <h2 className="text-xl font-bold text-slate-900">Today&apos;s menu</h2>
-        <div className="mt-4 rounded-3xl border-2 border-dashed border-slate-200 px-6 py-14 text-center">
-          <p className="text-4xl">🍱</p>
-          <p className="mt-3 font-semibold text-slate-900">The menu is being set up</p>
-          <p className="mt-1 text-sm text-slate-500">
-            Your canteen&apos;s items will appear here soon, ready to add to your cart.
-          </p>
-        </div>
-      </section>
-
-      <section className="mt-10 grid gap-4 sm:grid-cols-3">
-        {STEPS.map(({ icon: Icon, title, text }) => (
-          <div key={title} className="rounded-2xl bg-slate-50 p-5">
-            <div className="inline-flex rounded-xl bg-accent-100 p-2.5 text-accent-600">
-              <Icon className="h-5 w-5" />
+      {students.length === 0 && (
+        <section className="mt-10 grid gap-4 sm:grid-cols-3">
+          {STEPS.map(({ icon: Icon, title, text }) => (
+            <div key={title} className="rounded-2xl bg-slate-50 p-5">
+              <div className="inline-flex rounded-xl bg-accent-100 p-2.5 text-accent-600">
+                <Icon className="h-5 w-5" />
+              </div>
+              <p className="mt-3 font-semibold text-slate-900">{title}</p>
+              <p className="mt-1 text-sm text-slate-500">{text}</p>
             </div>
-            <p className="mt-3 font-semibold text-slate-900">{title}</p>
-            <p className="mt-1 text-sm text-slate-500">{text}</p>
-          </div>
-        ))}
-      </section>
+          ))}
+        </section>
+      )}
     </div>
   );
 }

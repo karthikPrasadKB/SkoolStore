@@ -163,6 +163,23 @@ export function SettingsForm({ school }: { school: SchoolSettings }) {
         </label>
       </Section>
 
+      <Section title="Pre-orders not collected" hint="When a child doesn't pick up a pre-order on the day.">
+        <label className="flex cursor-pointer items-start gap-3">
+          <input
+            type="checkbox"
+            name="refund_uncollected"
+            defaultChecked={school.refund_uncollected}
+            className="mt-1 h-4 w-4 accent-brand-600"
+          />
+          <span>
+            <span className="block font-semibold text-slate-900">Refund uncollected pre-orders to the wallet</span>
+            <span className="block text-sm text-slate-500">
+              Untick to keep the money (the food was prepared). You can always cancel and refund an order yourself.
+            </span>
+          </span>
+        </label>
+      </Section>
+
       <Section title="Discounts" hint="Admins and canteen staff can always give discounts.">
         <label className="flex cursor-pointer items-start gap-3">
           <input

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { logout } from "@/app/auth/actions";
 import { Logo } from "@/components/logo";
+import { SchoolSwitcher, type MySchool } from "@/components/school-switcher";
 import { StaffNav } from "@/components/staff-nav";
 import { getProfile } from "@/lib/auth";
 import { ROLE_LABELS } from "@/lib/roles";
@@ -12,10 +13,26 @@ export default async function StaffLayout({ children }: { children: React.ReactN
   const profile = await getProfile();
   if (!profile) redirect("/login");
 
+  const supabase = await createClient();
+
+  // The schools this person works at (for the switcher).
+  const { data: membershipRows } = await supabase
+    .from("school_memberships")
+    .select("role, school:schools(id, name)")
+    .eq("profile_id", profile.id);
+  const mySchools: MySchool[] = (
+    (membershipRows ?? []) as unknown as { role: MySchool["role"]; school: { id: string; name: string } | null }[]
+  )
+    .filter((m) => m.school)
+    .map((m) => ({ id: m.school!.id, name: m.school!.name, role: m.role }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  if (!mySchools.some((s) => s.id === profile.school_id)) {
+    mySchools.unshift({ id: profile.school_id, name: profile.school.name, role: profile.role });
+  }
+
   // Admins see how many parent requests are waiting.
   const badges: Record<string, number> = {};
   if (profile.role === "admin") {
-    const supabase = await createClient();
     const { count } = await supabase
       .from("support_requests")
       .select("id", { count: "exact", head: true })
@@ -44,10 +61,7 @@ export default async function StaffLayout({ children }: { children: React.ReactN
 
   const logoutButton = (
     <form action={logout}>
-      <button
-        title="Log out"
-        className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
-      >
+      <button title="Log out" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900">
         <LogOut className="h-[18px] w-[18px]" />
       </button>
     </form>
@@ -59,9 +73,8 @@ export default async function StaffLayout({ children }: { children: React.ReactN
         <div className="px-2 py-1">
           <Logo />
         </div>
-        <div className="mt-6 rounded-xl bg-slate-50 px-3 py-2.5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">School</p>
-          <p className="truncate font-semibold text-slate-800">{profile.school.name}</p>
+        <div className="mt-6">
+          <SchoolSwitcher schools={mySchools} currentId={profile.school_id} canAdd={profile.role === "admin"} />
         </div>
         <div className="mt-6 flex-1">
           <StaffNav role={profile.role} layout="sidebar" badges={badges} />
@@ -74,9 +87,12 @@ export default async function StaffLayout({ children }: { children: React.ReactN
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="border-b border-slate-200 bg-white px-4 py-3 md:hidden">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <Logo />
             {logoutButton}
+          </div>
+          <div className="mt-3">
+            <SchoolSwitcher schools={mySchools} currentId={profile.school_id} canAdd={profile.role === "admin"} />
           </div>
           <div className="mt-3">
             <StaffNav role={profile.role} layout="strip" badges={badges} />

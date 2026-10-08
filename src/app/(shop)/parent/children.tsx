@@ -18,7 +18,7 @@ export type Child = {
   wallet_allowed: boolean;
   wallet_daily_limit: number | null;
   school_id: string;
-  school: { name: string; use_canteen_codes: boolean } | null;
+  school: { name: string; join_code: string; use_canteen_codes: boolean } | null;
 };
 
 const inputClass =
@@ -86,6 +86,8 @@ export function Children({
             child={child}
             homeSchool={homeSchool}
             showSchool={hasSeveralSchools}
+            linkedSchools={linkedSchools}
+            allSchools={allSchools}
             onContact={(idCardNumber) => setContact({ schoolId: child.school_id, idCardNumber })}
           />
         ))}
@@ -226,13 +228,24 @@ function ChildCard({
   child,
   homeSchool,
   showSchool,
+  linkedSchools,
+  allSchools,
   onContact,
 }: {
   child: Child;
   homeSchool: string;
   showSchool: boolean;
+  linkedSchools: SchoolOption[];
+  allSchools: SchoolOption[];
   onContact: (idCardNumber?: string) => void;
 }) {
+  const currentCode = child.school?.join_code ?? "";
+  // The child's school is always offered, plus the parent's other schools, plus "Another school…".
+  const schoolOptions = linkedSchools.some((s) => s.join_code === currentCode)
+    ? linkedSchools
+    : [...linkedSchools, ...allSchools.filter((s) => s.join_code === currentCode)];
+  const [schoolChoice, setSchoolChoice] = useState(currentCode);
+  const [pickedOther, setPickedOther] = useState<string[]>([]);
   const [allowed, setAllowed] = useState(child.wallet_allowed);
   const [editing, setEditing] = useState(false);
   const [state, action, pending] = useActionState<ChildState, FormData>(async (prev, formData) => {
@@ -317,6 +330,42 @@ function ChildCard({
       ) : (
         <form action={action} className="mt-4 space-y-3 border-t border-slate-100 pt-4">
           <input type="hidden" name="id" value={child.id} />
+          <div>
+            <label htmlFor={`child-school-${child.id}`} className="mb-1 block text-sm font-semibold text-slate-700">
+              School
+            </label>
+            <input type="hidden" name="current_school_code" value={currentCode} />
+            <select
+              id={`child-school-${child.id}`}
+              name={schoolChoice === "__other__" ? undefined : "school_code"}
+              value={schoolChoice}
+              onChange={(e) => setSchoolChoice(e.target.value)}
+              className={inputClass}
+            >
+              {schoolOptions.map((school) => (
+                <option key={school.id} value={school.join_code}>
+                  {school.name} · {school.join_code}
+                </option>
+              ))}
+              <option value="__other__">Another school…</option>
+            </select>
+            {schoolChoice === "__other__" && (
+              <div className="mt-2">
+                <SchoolPicker
+                  schools={allSchools}
+                  name="school_code"
+                  selected={pickedOther}
+                  onChange={setPickedOther}
+                  placeholder="Search for their new school"
+                />
+              </div>
+            )}
+            {schoolChoice !== currentCode && (
+              <p className="mt-1 text-xs text-amber-700">
+                Changing school: upcoming pre-orders must be cancelled first. Wallet money stays with the old school.
+              </p>
+            )}
+          </div>
           <IdCardField id={`child-id-${child.id}`} defaultValue={child.id_card_number ?? ""} inputClass={inputClass} />
           <label className="flex cursor-pointer items-center justify-between gap-3">
             <span className="text-sm font-semibold text-slate-800">Can pay with wallet at the counter</span>
@@ -354,7 +403,7 @@ function ChildCard({
           {!allowed && <input type="hidden" name="daily_limit" value={child.wallet_daily_limit ?? ""} />}
           <div className="flex items-center gap-3">
             <button
-              disabled={pending}
+              disabled={pending || (schoolChoice === "__other__" && pickedOther.length === 0)}
               className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-60"
             >
               {pending ? "Saving…" : "Save"}

@@ -1,4 +1,5 @@
 import { cache } from "react";
+import { getProfile } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 export type SchoolSettings = {
@@ -18,16 +19,21 @@ export type SchoolSettings = {
   saturday_open: string | null;
   saturday_close: string | null;
   use_canteen_codes: boolean;
+  refund_uncollected: boolean;
 };
 
-// The logged-in user's school with all its settings. Cached for one request.
+// The school the logged-in user is working in, with all its settings. Cached for one request.
+// (Staff can see several schools, so ask for the current one by id.)
 export const getSchool = cache(async (): Promise<SchoolSettings> => {
+  const profile = await getProfile();
+  if (!profile) throw new Error("Not logged in");
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("schools")
     .select(
-      "id, name, join_code, address, phone, gstin, gst_rate, preorder_cutoff_time, preorder_cutoff_same_day, counter_discount_allowed, counter_max_discount_percent, weekday_open, weekday_close, saturday_open, saturday_close, use_canteen_codes",
+      "id, name, join_code, address, phone, gstin, gst_rate, preorder_cutoff_time, preorder_cutoff_same_day, counter_discount_allowed, counter_max_discount_percent, weekday_open, weekday_close, saturday_open, saturday_close, use_canteen_codes, refund_uncollected",
     )
+    .eq("id", profile.school_id)
     .single();
   if (error) throw error;
   return {

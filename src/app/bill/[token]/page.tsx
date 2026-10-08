@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { FoodTypeMark } from "@/components/food-type-mark";
+import { formatDay } from "@/lib/dates";
 import { formatINR, type FoodType } from "@/lib/menu";
 import { createClient } from "@/lib/supabase/server";
 import { PrintOnLoad } from "./print-on-load";
@@ -11,6 +12,8 @@ type Bill = {
   school: { name: string; address: string; phone: string; gstin: string };
   bill_number: number;
   status: string;
+  source: string;
+  pickup_date: string | null;
   created_at: string;
   customer_name: string | null;
   student: { name: string; class_name: string } | null;
@@ -75,6 +78,7 @@ export default async function BillPage({ params, searchParams }: PageProps<"/bil
           <span>Bill #{bill.bill_number}</span>
           <span>{date}</span>
         </div>
+        {bill.source === "preorder" && bill.pickup_date && <p>Pre-order · pickup {formatDay(bill.pickup_date)}</p>}
         {bill.student && (
           <p>
             Student: {bill.student.name}
