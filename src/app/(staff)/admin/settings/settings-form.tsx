@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { Flash } from "@/components/flash";
 import { Alert, Button, Card, Field } from "@/components/ui";
 import type { SchoolSettings } from "@/lib/school";
 import { saveSettings, type SettingsState } from "./actions";
@@ -19,7 +20,13 @@ function Section({ title, hint, children }: { title: string; hint: string; child
 }
 
 export function SettingsForm({ school }: { school: SchoolSettings }) {
-  const [state, action, pending] = useActionState<SettingsState, FormData>(saveSettings, {});
+  const [notice, setNotice] = useState<string | null>(null);
+  const [state, action, pending] = useActionState<SettingsState, FormData>(async (prev, formData) => {
+    setNotice(null);
+    const result = await saveSettings(prev, formData);
+    if (result.saved) setNotice("Settings saved.");
+    return result;
+  }, {});
   const hasSaturday = Boolean(school.saturday_open && school.saturday_close);
   const [saturdayMode, setSaturdayMode] = useState<"closed" | "half" | "full">(
     !hasSaturday
@@ -31,11 +38,15 @@ export function SettingsForm({ school }: { school: SchoolSettings }) {
 
   return (
     <form action={action} className="space-y-6">
-      {state.error && <Alert kind="error">{state.error}</Alert>}
-      {state.saved && !pending && <Alert kind="success">Settings saved.</Alert>}
-
       <Section title="School details" hint="Printed at the top of every bill.">
-        <Field label="School / canteen name" name="name" defaultValue={school.name} required maxLength={200} />
+        <Field
+          label="School name"
+          name="name"
+          defaultValue={school.name}
+          required
+          maxLength={200}
+          hint="Parents search for your school by this name. Include the area so it's unique, e.g. William Richards School - KGF."
+        />
         <Field label="Address" name="address" defaultValue={school.address} maxLength={300} />
         <Field label="Phone" name="phone" type="tel" defaultValue={school.phone} maxLength={20} />
       </Section>
@@ -93,10 +104,7 @@ export function SettingsForm({ school }: { school: SchoolSettings }) {
         )}
       </Section>
 
-      <Section
-        title="GST"
-        hint="Menu prices include GST. The bill shows how much of the total is GST."
-      >
+      <Section title="GST" hint="Menu prices include GST. The bill shows how much of the total is GST.">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field
             label="GSTIN (optional)"
@@ -190,7 +198,9 @@ export function SettingsForm({ school }: { school: SchoolSettings }) {
           />
           <span>
             <span className="block font-semibold text-slate-900">Counter staff can give discounts</span>
-            <span className="block text-sm text-slate-500">Untick to allow discounts only from admins and canteen staff.</span>
+            <span className="block text-sm text-slate-500">
+              Untick to allow discounts only from admins and canteen staff.
+            </span>
           </span>
         </label>
         <div className="sm:w-1/2">
@@ -206,9 +216,14 @@ export function SettingsForm({ school }: { school: SchoolSettings }) {
         </div>
       </Section>
 
-      <Button type="submit" disabled={pending} className="px-6 py-3">
-        {pending ? "Saving…" : "Save settings"}
-      </Button>
+      {/* Shown next to the button, where the person is looking after clicking Save. */}
+      {state.error && <Alert kind="error">{state.error}</Alert>}
+      <div className="flex flex-wrap items-center gap-3">
+        <Button type="submit" disabled={pending} className="px-6 py-3">
+          {pending ? "Saving…" : "Save settings"}
+        </Button>
+        {notice && <Flash message={notice} onClose={() => setNotice(null)} />}
+      </div>
     </form>
   );
 }

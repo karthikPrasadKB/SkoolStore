@@ -5,15 +5,15 @@ import { Check, ChevronDown, School as SchoolIcon, X } from "lucide-react";
 
 export type School = { id: string; name: string; join_code: string };
 
-// Searchable dropdown of schools. Type part of a name or code to filter.
-// Selected codes are submitted as hidden inputs called `name`.
+// Searchable dropdown of schools. Type part of a name to filter.
+// The selected schools are submitted as hidden inputs called `name` (their internal codes).
 export function SchoolPicker({
   schools,
   name,
   multiple = false,
   selected,
   onChange,
-  placeholder = "Search by school name or code",
+  placeholder = "Search by school name",
 }: {
   schools: School[];
   name: string;
@@ -29,9 +29,7 @@ export function SchoolPicker({
   const listId = useId();
 
   const term = query.trim().toLowerCase();
-  const matches = schools.filter(
-    (s) => !term || s.name.toLowerCase().includes(term) || s.join_code.toLowerCase().includes(term),
-  );
+  const matches = schools.filter((s) => !term || s.name.toLowerCase().includes(term));
   const selectedSchools = selected
     .map((code) => schools.find((s) => s.join_code === code))
     .filter((s): s is School => Boolean(s));
@@ -85,7 +83,7 @@ export function SchoolPicker({
               key={school.join_code}
               className="flex items-center gap-1.5 rounded-full bg-brand-50 py-1 pl-3 pr-1.5 text-sm font-semibold text-brand-700"
             >
-              {school.name} <span className="font-mono text-xs text-brand-500">{school.join_code}</span>
+              {school.name}
               <button
                 type="button"
                 onClick={() => onChange(selected.filter((c) => c !== school.join_code))}
@@ -103,7 +101,7 @@ export function SchoolPicker({
         <SchoolIcon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
         <input
           ref={inputRef}
-          value={single && !open ? `${single.name} · ${single.join_code}` : query}
+          value={single && !open ? single.name : query}
           onChange={(e) => {
             setQuery(e.target.value);
             setOpen(true);
@@ -151,12 +149,7 @@ export function SchoolPicker({
                   }`}
                 >
                   <span className="font-medium text-slate-900">{school.name}</span>
-                  <span className="flex items-center gap-2">
-                    <span className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-xs text-slate-600">
-                      {school.join_code}
-                    </span>
-                    {isSelected && <Check className="h-4 w-4 text-brand-600" />}
-                  </span>
+                  {isSelected && <Check className="h-4 w-4 shrink-0 text-brand-600" />}
                 </li>
               );
             })

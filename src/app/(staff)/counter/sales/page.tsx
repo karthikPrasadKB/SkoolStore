@@ -22,6 +22,7 @@ type OrderRow = {
   cancel_reason: string | null;
   cancelled_at: string | null;
   canceller: { full_name: string } | null;
+  biller: { full_name: string } | null;
   order_items: { quantity: number }[];
 };
 
@@ -38,12 +39,13 @@ function todayInIndia() {
 
 export default async function SalesPage() {
   const profile = await requireRole(["admin", "canteen_staff", "counter_staff"]);
-  const canCancel = profile.role === "admin";
+  // Admins can cancel bills and see who billed each one.
+  const isAdmin = profile.role === "admin";
   const supabase = await createClient();
 
   const { data } = await supabase
     .from("orders")
-    .select("id, bill_number, status, source, customer_name, customer_phone, student:students(full_name, class_name), total, discount_amount, payment_method, public_token, created_at, cancel_reason, cancelled_at, canceller:profiles!orders_cancelled_by_fkey(full_name), order_items(quantity)")
+    .select("id, bill_number, status, source, customer_name, customer_phone, student:students(full_name, class_name), total, discount_amount, payment_method, public_token, created_at, cancel_reason, cancelled_at, canceller:profiles!orders_cancelled_by_fkey(full_name), biller:profiles!orders_created_by_fkey(full_name), order_items(quantity)")
     .eq("pickup_date", todayInIndia())
     .order("created_at", { ascending: false });
   const orders = (data ?? []) as unknown as OrderRow[];
@@ -124,6 +126,7 @@ export default async function SalesPage() {
                   <th className="px-5 py-3 font-semibold">Student / customer</th>
                   <th className="px-5 py-3 font-semibold">Items</th>
                   <th className="px-5 py-3 font-semibold">Paid by</th>
+                  {isAdmin && <th className="px-5 py-3 font-semibold">Billed by</th>}
                   <th className="px-5 py-3 text-right font-semibold">Total</th>
                   <th className="px-5 py-3" />
                 </tr>
@@ -169,6 +172,11 @@ export default async function SalesPage() {
                       </td>
                       <td className="px-5 py-3">{itemCount}</td>
                       <td className="px-5 py-3 capitalize">{order.payment_method === "upi" ? "UPI" : order.payment_method ?? "—"}</td>
+                      {isAdmin && (
+                        <td className="px-5 py-3 text-slate-600">
+                          {order.source === "preorder" ? "Parent (online)" : (order.biller?.full_name ?? "Former staff")}
+                        </td>
+                      )}
                       <td className={`px-5 py-3 text-right font-bold ${cancelled ? "line-through" : "text-slate-900"}`}>
                         {formatINR(Number(order.total))}
                         {Number(order.discount_amount) > 0 && (
@@ -185,7 +193,7 @@ export default async function SalesPage() {
                           >
                             <ExternalLink className="h-4 w-4" />
                           </a>
-                          {canCancel && !cancelled && (
+                          {isAdmin && !cancelled && (
                             <CancelBill orderId={order.id} billNumber={order.bill_number} />
                           )}
                         </div>

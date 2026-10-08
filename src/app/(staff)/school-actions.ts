@@ -2,13 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireRole } from "@/lib/auth";
+import { getProfile, requireRole } from "@/lib/auth";
 import { homeFor, type Role } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 
 // Switch the school a staff member is working in. Everything they see then belongs to that school.
 export async function switchSchool(schoolId: string) {
-  const profile = await requireRole(["admin", "canteen_staff", "counter_staff"]);
+  // Not requireRole: staff on the "paused" page must still be able to switch to another school.
+  const profile = await getProfile();
+  if (!profile || profile.role === "parent") redirect("/login");
   const supabase = await createClient();
   const { error } = await supabase.rpc("switch_school", { p_school_id: schoolId });
   if (error) return { error: error.message };

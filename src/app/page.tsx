@@ -23,6 +23,8 @@ import { ContactForm } from "@/app/_landing/contact-form";
 import { Logo } from "@/components/logo";
 import { buttonClass } from "@/components/ui";
 import { getProfile } from "@/lib/auth";
+import { isPlatformAdmin } from "@/lib/platform";
+import { createClient } from "@/lib/supabase/server";
 import { homeFor } from "@/lib/roles";
 import { SITE } from "@/lib/site";
 
@@ -57,14 +59,20 @@ const FEATURES = [
 ];
 
 const STEPS = [
-  { title: "Your school joins", text: "We set up your canteen and give you a school code to share with parents." },
-  { title: "Parents order", text: "Parents sign up with the code, add their kids and place orders online." },
+  { title: "Your school joins", text: "We set up your school's store, and parents find it by name when they sign up." },
+  { title: "Parents order", text: "Parents sign up, pick their school, add their kids and place orders online." },
   { title: "Kids pick up", text: "At break time, kids show their ID card and collect their food." },
 ];
 
 export default async function HomePage() {
   const profile = await getProfile();
   if (profile) redirect(homeFor(profile.role));
+  // Superadmins have no school profile: send them to the HQ portal.
+  if (await isPlatformAdmin()) redirect("/hq");
+  // A client's new admin who hasn't created a school yet.
+  const supabase = await createClient();
+  const { data: pendingClient } = await supabase.rpc("my_pending_client");
+  if (pendingClient) redirect("/welcome");
 
   return (
     <div className="bg-white">

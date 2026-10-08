@@ -13,7 +13,7 @@ function text(formData: FormData, key: string) {
 
 export async function login(_prev: FormState, formData: FormData): Promise<FormState> {
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data: signedIn, error } = await supabase.auth.signInWithPassword({
     // Parents use their email; staff use their username.
     email: loginEmail(text(formData, "login")),
     password: String(formData.get("password") ?? ""),
@@ -23,6 +23,31 @@ export async function login(_prev: FormState, formData: FormData): Promise<FormS
     return { error: "Please confirm your email first. Check your inbox for the link we sent." };
   }
   if (error) return { error: "Wrong email, username or password." };
+
+  // Staff whose school's client is disabled: move them to another school they work at, or refuse the login.
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("id, role, school_id")
+    .eq("id", signedIn.user.id)
+    .maybeSingle();
+  if (profile && profile.role !== "parent") {
+    const { data: paused } = await supabase.rpc("access_paused_at", { p_school_id: profile.school_id });
+    if (paused) {
+      const { data: memberships } = await supabase
+        .from("school_memberships")
+        .select("school_id")
+        .eq("profile_id", profile.id);
+      for (const m of memberships ?? []) {
+        const { data: other } = await supabase.rpc("access_paused_at", { p_school_id: m.school_id });
+        if (!other) {
+          await supabase.rpc("switch_school", { p_school_id: m.school_id });
+          redirect("/");
+        }
+      }
+      await supabase.auth.signOut();
+      return { error: "Your organisation's access to SkoolStore has been paused. Please contact SkoolStore." };
+    }
+  }
   redirect("/");
 }
 

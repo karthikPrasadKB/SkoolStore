@@ -18,7 +18,6 @@ export function LoginForm({ linkError }: { linkError: boolean }) {
         autoCapitalize="none"
         spellCheck={false}
         required
-        hint="Staff: use the username your school admin gave you."
       />
       <Field label="Password" name="password" type="password" autoComplete="current-password" required />
       <Button type="submit" disabled={pending} className="w-full py-3">

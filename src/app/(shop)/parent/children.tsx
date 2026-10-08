@@ -46,11 +46,17 @@ export function Children({
   const [pickedOther, setPickedOther] = useState<string[]>([]);
   const hasSeveralSchools = linkedSchools.length > 1;
   const addingSchoolCode =
-    otherSchool || schoolChoice === "__other__" ? pickedOther[0] : hasSeveralSchools ? schoolChoice : linkedSchools[0]?.join_code;
+    otherSchool || schoolChoice === "__other__"
+      ? pickedOther[0]
+      : hasSeveralSchools
+        ? schoolChoice
+        : linkedSchools[0]?.join_code;
   const addingSchool = allSchools.find((s) => s.join_code === addingSchoolCode);
   // Schools offered in the contact form: the parent's own, plus the one they're adding a child to.
   const contactSchools =
-    addingSchool && !linkedSchools.some((s) => s.id === addingSchool.id) ? [...linkedSchools, addingSchool] : linkedSchools;
+    addingSchool && !linkedSchools.some((s) => s.id === addingSchool.id)
+      ? [...linkedSchools, addingSchool]
+      : linkedSchools;
   // "Another school" is open but nothing has been picked yet.
   const needsSchool = (otherSchool || schoolChoice === "__other__") && pickedOther.length === 0;
   const formRef = useRef<HTMLFormElement>(null);
@@ -93,7 +99,11 @@ export function Children({
         ))}
 
         {adding && (
-          <form ref={formRef} action={action} className="space-y-3 rounded-2xl border-2 border-dashed border-slate-200 p-5">
+          <form
+            ref={formRef}
+            action={action}
+            className="space-y-3 rounded-2xl border-2 border-dashed border-slate-200 p-5"
+          >
             <p className="font-semibold text-slate-900">Add a child</p>
             <div>
               <div className="mb-1 flex items-center gap-1">
@@ -138,7 +148,7 @@ export function Children({
               >
                 {linkedSchools.map((school) => (
                   <option key={school.id} value={school.join_code}>
-                    {school.name} · {school.join_code}
+                    {school.name}
                   </option>
                 ))}
                 <option value="__other__">Another school…</option>
@@ -344,7 +354,7 @@ function ChildCard({
             >
               {schoolOptions.map((school) => (
                 <option key={school.id} value={school.join_code}>
-                  {school.name} · {school.join_code}
+                  {school.name}
                 </option>
               ))}
               <option value="__other__">Another school…</option>

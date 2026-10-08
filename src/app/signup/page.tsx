@@ -10,7 +10,7 @@ export default async function SignupPage() {
   return (
     <AuthShell
       title="Create your account"
-      subtitle="Parents and canteen staff both sign up here. Staff get their access from the school admin."
+      subtitle="Order school canteen food for your children."
       footer={
         <>
           Already have an account? <AuthLink href="/login">Log in</AuthLink>

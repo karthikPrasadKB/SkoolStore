@@ -1,5 +1,6 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { KeyRound, LogOut } from "lucide-react";
 import { logout } from "@/app/auth/actions";
 import { Logo } from "@/components/logo";
 import { SchoolSwitcher, type MySchool } from "@/components/school-switcher";
@@ -12,6 +13,7 @@ import { createClient } from "@/lib/supabase/server";
 export default async function StaffLayout({ children }: { children: React.ReactNode }) {
   const profile = await getProfile();
   if (!profile) redirect("/login");
+  if (profile.school_disabled) redirect("/paused");
 
   const supabase = await createClient();
 
@@ -60,11 +62,20 @@ export default async function StaffLayout({ children }: { children: React.ReactN
   );
 
   const logoutButton = (
-    <form action={logout}>
-      <button title="Log out" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900">
-        <LogOut className="h-[18px] w-[18px]" />
-      </button>
-    </form>
+    <div className="flex items-center">
+      <Link
+        href="/account/password"
+        title="Change password"
+        className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+      >
+        <KeyRound className="h-[18px] w-[18px]" />
+      </Link>
+      <form action={logout}>
+        <button title="Log out" className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900">
+          <LogOut className="h-[18px] w-[18px]" />
+        </button>
+      </form>
+    </div>
   );
 
   return (
@@ -98,6 +109,11 @@ export default async function StaffLayout({ children }: { children: React.ReactN
             <StaffNav role={profile.role} layout="strip" badges={badges} />
           </div>
         </header>
+        {profile.school.is_disabled && (
+          <div className="border-b border-amber-200 bg-amber-50 px-4 py-2.5 text-center text-sm font-medium text-amber-900">
+            This school is disabled: parents can&apos;t see it and staff can&apos;t use it. Turn it back on in Settings.
+          </div>
+        )}
         {/* Pages marked data-fullbleed (like the counter) use the whole width with no padding. */}
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 md:px-10 has-[[data-fullbleed]]:max-w-none has-[[data-fullbleed]]:p-0">
           {children}

@@ -6,8 +6,10 @@ import { useRouter } from "next/navigation";
 import { CreditCard, Minus, Plus, Search, ShoppingBag, Trash2, UtensilsCrossed, Wallet, WalletCards } from "lucide-react";
 import { CustomiseDialog, type MenuOption, type MenuProduct } from "@/components/customise-dialog";
 import { FoodTypeMark } from "@/components/food-type-mark";
-import { formatINR, imageUrl, type Category } from "@/lib/menu";
+import { formatINR, formatTime, imageUrl, type Category } from "@/lib/menu";
 import { placePreorder } from "../actions";
+
+export type PickupSlot = { id: string; name: string; starts_at: string; capacity: number; left: number };
 
 type CartLine = {
   key: string;
@@ -27,6 +29,7 @@ export function OrderBuilder({
   dayLabel,
   pickupDate,
   closesAt,
+  slots,
 }: {
   products: MenuProduct[];
   categories: Category[];
@@ -36,6 +39,7 @@ export function OrderBuilder({
   dayLabel: string;
   pickupDate: string;
   closesAt: string;
+  slots: PickupSlot[];
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -45,6 +49,10 @@ export function OrderBuilder({
   const [customising, setCustomising] = useState<MenuProduct | null>(null);
   const [showCart, setShowCart] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Start with the first break that still has room.
+  const [slotId, setSlotId] = useState<string | null>(slots.find((s) => s.left > 0)?.id ?? null);
+  const needsSlot = slots.length > 0;
+  const allFull = needsSlot && slots.every((s) => s.left === 0);
 
   const visible = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -84,6 +92,7 @@ export function OrderBuilder({
       const result = await placePreorder({
         student_id: studentId,
         pickup_date: pickupDate,
+        slot_id: needsSlot ? slotId : null,
         items: cart.map((l) => ({ product_id: l.product.id, quantity: l.quantity, option_ids: l.optionIds })),
       });
       if (!result.ok) {
@@ -151,11 +160,55 @@ export function OrderBuilder({
         )}
       </div>
 
-      <div className="space-y-3 border-t border-slate-200 px-5 py-4">
+      <div className="max-h-[65%] shrink-0 space-y-3 overflow-y-auto border-t border-slate-200 px-5 py-4">
         <div className="flex items-baseline justify-between">
           <span className="font-semibold text-slate-700">Total</span>
           <span className="text-2xl font-extrabold">{formatINR(total)}</span>
         </div>
+
+        {needsSlot && (
+          <div>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Pickup time</p>
+            <div className="space-y-1.5">
+              {slots.map((slot) => {
+                const full = slot.left === 0;
+                return (
+                  <label
+                    key={slot.id}
+                    className={`flex items-center gap-3 rounded-xl border px-3 py-2 text-sm transition ${
+                      full
+                        ? "cursor-not-allowed border-slate-200 opacity-50"
+                        : slotId === slot.id
+                          ? "cursor-pointer border-accent-500 bg-accent-50"
+                          : "cursor-pointer border-slate-200 hover:bg-slate-50"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="pickup_slot"
+                      checked={slotId === slot.id}
+                      disabled={full}
+                      onChange={() => setSlotId(slot.id)}
+                      className="accent-accent-500"
+                    />
+                    <span className="flex-1">
+                      <span className="font-semibold text-slate-900">{slot.name}</span>
+                      <span className="text-slate-500"> · {formatTime(slot.starts_at)}</span>
+                    </span>
+                    <span
+                      className={`text-xs font-semibold ${full ? "text-red-600" : slot.left <= 5 ? "text-amber-600" : "text-emerald-600"}`}
+                    >
+                      {full ? "Full" : `${slot.left} left`}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+            {allFull && (
+              <p className="mt-2 text-xs text-red-600">All pickup times are full for this day. Please choose another day.</p>
+            )}
+          </div>
+        )}
 
         <div>
           <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">Pay with</p>
@@ -187,7 +240,7 @@ export function OrderBuilder({
 
         <button
           onClick={placeOrder}
-          disabled={cart.length === 0 || pending || shortBy > 0}
+          disabled={cart.length === 0 || pending || shortBy > 0 || (needsSlot && !slotId)}
           className="w-full rounded-xl bg-accent-500 py-3.5 text-lg font-bold text-white shadow-sm shadow-accent-500/30 transition hover:bg-accent-600 disabled:opacity-50"
         >
           {pending ? "Placing order…" : cart.length === 0 ? "Add items" : `Place order · ${formatINR(total)}`}

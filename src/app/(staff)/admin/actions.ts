@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth";
 import type { Role } from "@/lib/roles";
 import { getSchool } from "@/lib/school";
+import { createStaffAccount, readNewStaff } from "@/lib/staff-accounts";
 import { staffEmail, USERNAME_PATTERN } from "@/lib/staff-login";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -24,7 +25,6 @@ export async function changeRole(_prev: RoleState, formData: FormData): Promise<
   return { saved: true };
 }
 
-const STAFF_ROLES = ["canteen_staff", "counter_staff", "admin"] as const;
 
 // Returns the staff member if they work at this admin's school, otherwise null.
 async function findOwnStaff(memberId: string, schoolId: string) {
@@ -44,56 +44,14 @@ export type StaffState = { error?: string; added?: string };
 // Creates a ready-to-use staff account at the admin's school. Staff log in with a username.
 export async function addStaff(_prev: StaffState, formData: FormData): Promise<StaffState> {
   await requireRole(["admin"]);
-  const field = (key: string) => String(formData.get(key) ?? "").trim();
-  const fullName = field("full_name");
-  const username = field("username").toLowerCase();
-  const phone = field("phone");
-  const contactEmail = field("email").toLowerCase();
-  const role = field("role") as (typeof STAFF_ROLES)[number];
-  const password = String(formData.get("password") ?? "");
+  const staff = readNewStaff(formData);
+  if ("error" in staff) return staff;
 
-  if (!fullName) return { error: "Please enter their name." };
-  if (!USERNAME_PATTERN.test(username)) {
-    return { error: "Username: 3–30 lowercase letters, numbers, dots or underscores (e.g. ramesh.k)." };
-  }
-  if (phone.replace(/\D/g, "").length < 10) return { error: "Please enter a valid phone number." };
-  if (contactEmail && !/^\S+@\S+\.\S+$/.test(contactEmail)) return { error: "That email doesn't look right." };
-  if (!STAFF_ROLES.includes(role)) return { error: "Please choose a role." };
-  if (password.length < 8) return { error: "The temporary password must be at least 8 characters." };
-
-  const admin = createAdminClient();
-  if (!admin) return { error: "Adding staff isn't set up yet: the SUPABASE_SECRET_KEY is missing from .env.local." };
-
-  const school = await getSchool();
-  // The sign-up trigger creates their profile at this school (as a parent); then we make them staff.
-  const { data, error } = await admin.auth.admin.createUser({
-    email: staffEmail(username),
-    password,
-    email_confirm: true,
-    user_metadata: { full_name: fullName, phone: phone.slice(0, 20), school_code: school.join_code },
-  });
-
-  if (error) {
-    return {
-      error: /already|registered|exists/i.test(error.message)
-        ? `The username "${username}" is already taken. Please choose another.`
-        : error.message,
-    };
-  }
-
-  const { error: profileError } = await admin
-    .from("profiles")
-    .update({ role, username, contact_email: contactEmail || null })
-    .eq("id", data.user.id);
-  if (profileError) return { error: `Account created, but saving their details failed: ${profileError.message}` };
-
-  const { error: memberError } = await admin
-    .from("school_memberships")
-    .insert({ profile_id: data.user.id, school_id: school.id, role });
-  if (memberError) return { error: `Account created, but adding them to the school failed: ${memberError.message}` };
+  const result = await createStaffAccount(staff, await getSchool());
+  if ("error" in result) return result;
 
   revalidatePath("/admin");
-  return { added: `${fullName} can now log in with username "${username}" and the temporary password.` };
+  return { added: `${staff.fullName} can now log in with username "${staff.username}" and the temporary password.` };
 }
 
 export type PasswordState = { error?: string; done?: boolean };
@@ -109,7 +67,11 @@ export async function resetStaffPassword(_prev: PasswordState, formData: FormDat
 
   const admin = createAdminClient();
   if (!admin) return { error: "The SUPABASE_SECRET_KEY is missing from .env.local." };
-  const { error } = await admin.auth.admin.updateUserById(memberId, { password });
+  // A password set by the admin is temporary: they choose their own at next login.
+  const { error } = await admin.auth.admin.updateUserById(memberId, {
+    password,
+    user_metadata: { must_change_password: true },
+  });
   if (error) return { error: error.message };
   return { done: true };
 }
@@ -192,4 +154,55 @@ export async function deleteStaff(formData: FormData) {
     await supabase.rpc("set_member_role", { member_id: memberId, new_role: "parent" });
   }
   revalidatePath("/admin");
+}
+
+export type PartnerState = { error?: string; done?: string };
+
+// A client admin adds a partner as admin of some of their schools: a new account or an existing username.
+// They can only give access to schools they are an admin of themselves.
+export async function addPartner(_prev: PartnerState, formData: FormData): Promise<PartnerState> {
+  const profile = await requireRole(["admin"]);
+  const schoolIds = formData.getAll("school_ids").map(String);
+  if (schoolIds.length === 0) return { error: "Tick at least one school." };
+
+  const supabase = await createClient();
+  const { data: mine } = await supabase
+    .from("school_memberships")
+    .select("school:schools(id, name, join_code)")
+    .eq("profile_id", profile.id)
+    .eq("role", "admin");
+  const allowed = ((mine ?? []) as unknown as { school: { id: string; name: string; join_code: string } | null }[])
+    .map((m) => m.school)
+    .filter((s): s is { id: string; name: string; join_code: string } => Boolean(s));
+  const chosen = allowed.filter((s) => schoolIds.includes(s.id));
+  if (chosen.length !== schoolIds.length) return { error: "You can only add partners to schools you manage." };
+
+  const admin = createAdminClient();
+  if (!admin) return { error: "The SUPABASE_SECRET_KEY is missing from .env.local." };
+
+  let partnerId: string;
+  let label: string;
+  const existing = String(formData.get("existing_username") ?? "").trim().toLowerCase();
+  if (existing) {
+    const { data: person } = await admin.from("profiles").select("id, full_name").eq("username", existing).maybeSingle();
+    if (!person) return { error: `No staff account with username "${existing}".` };
+    if (person.id === profile.id) return { error: "That's you." };
+    [partnerId, label] = [person.id, person.full_name];
+  } else {
+    const staff = readNewStaff(formData, "admin");
+    if ("error" in staff) return staff;
+    const result = await createStaffAccount(staff, chosen[0]);
+    if ("error" in result) return result;
+    const { data: person } = await admin.from("profiles").select("id").eq("username", staff.username).single();
+    if (!person) return { error: "Account created, but couldn't find it to add the schools." };
+    [partnerId, label] = [person.id, `${staff.fullName} (username "${staff.username}")`];
+  }
+
+  const { error } = await admin
+    .from("school_memberships")
+    .upsert(chosen.map((s) => ({ profile_id: partnerId, school_id: s.id, role: "admin" })));
+  if (error) return { error: error.message };
+
+  revalidatePath("/admin");
+  return { done: `${label} is now an admin of ${chosen.map((s) => s.name).join(", ")}.` };
 }

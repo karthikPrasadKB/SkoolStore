@@ -67,8 +67,9 @@ export function ProductForm({
   const [categoryChoice, setCategoryChoice] = useState(product?.category_id ?? "");
   // The days the school is open: Mon–Fri, plus Saturday unless it's closed.
   const schoolDays = schoolHours.saturday_open ? [1, 2, 3, 4, 5, 6] : [1, 2, 3, 4, 5];
+  // Days the school is closed can't be chosen (and are dropped from items saved earlier).
   const [days, setDays] = useState<number[]>(
-    product?.available_days.length ? product.available_days : schoolDays,
+    product?.available_days.length ? product.available_days.filter((d) => schoolDays.includes(d)) : schoolDays,
   );
   const [timeMode, setTimeMode] = useState<"school" | "custom">(
     product?.available_from || product?.available_until ? "custom" : "school",
@@ -107,7 +108,6 @@ export function ProductForm({
     formAction(formData);
   }
 
-
   return (
     <form action={submit} className="space-y-6">
       <input type="hidden" name="id" value={product?.id ?? ""} />
@@ -121,7 +121,14 @@ export function ProductForm({
         <div className="space-y-6 lg:col-span-2">
           <Section title="Item details">
             <div className="space-y-4">
-              <Field label="Name" name="name" defaultValue={product?.name} required maxLength={100} placeholder="e.g. Veg sandwich" />
+              <Field
+                label="Name"
+                name="name"
+                defaultValue={product?.name}
+                required
+                maxLength={100}
+                placeholder="e.g. Veg sandwich"
+              />
               <label className="block">
                 <span className="mb-1.5 block text-sm font-semibold text-slate-700">Description (optional)</span>
                 <textarea
@@ -201,7 +208,11 @@ export function ProductForm({
                         className="peer sr-only"
                       />
                       <span className="flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition peer-checked:border-brand-500 peer-checked:bg-brand-50 peer-checked:text-brand-700">
-                        {type === "none" ? <Package className="h-4 w-4 text-slate-500" /> : <FoodTypeMark type={type} />}
+                        {type === "none" ? (
+                          <Package className="h-4 w-4 text-slate-500" />
+                        ) : (
+                          <FoodTypeMark type={type} />
+                        )}
                         {FOOD_TYPE_LABELS[type]}
                       </span>
                     </label>
@@ -268,23 +279,28 @@ export function ProductForm({
                           value={option.name}
                           onChange={(e) =>
                             updateGroup(groupIndex, {
-                              options: group.options.map((o, i) => (i === optionIndex ? { ...o, name: e.target.value } : o)),
+                              options: group.options.map((o, i) =>
+                                i === optionIndex ? { ...o, name: e.target.value } : o,
+                              ),
                             })
                           }
                           placeholder="Choice, e.g. Large"
                           className={`${selectClass} flex-1`}
                         />
                         <div className="relative w-32">
-                          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">+₹</span>
+                          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">
+                            +₹
+                          </span>
                           <input
                             type="number"
                             min="0"
                             step="0.5"
-                            value={option.price_delta}
+                            value={option.price_delta === 0 ? "" : option.price_delta}
+                            placeholder="0"
                             onChange={(e) =>
                               updateGroup(groupIndex, {
                                 options: group.options.map((o, i) =>
-                                  i === optionIndex ? { ...o, price_delta: Number(e.target.value) } : o,
+                                  i === optionIndex ? { ...o, price_delta: e.target.value } : o,
                                 ),
                               })
                             }
@@ -306,7 +322,7 @@ export function ProductForm({
                     <button
                       type="button"
                       onClick={() =>
-                        updateGroup(groupIndex, { options: [...group.options, { name: "", price_delta: 0 }] })
+                        updateGroup(groupIndex, { options: [...group.options, { name: "", price_delta: "" }] })
                       }
                       className="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-semibold text-brand-600 hover:bg-brand-50"
                     >
@@ -322,7 +338,7 @@ export function ProductForm({
                 onClick={() =>
                   setGroups((current) => [
                     ...current,
-                    { name: "", is_required: false, max_select: 1, options: [{ name: "", price_delta: 0 }] },
+                    { name: "", is_required: false, max_select: 1, options: [{ name: "", price_delta: "" }] },
                   ])
                 }
               >
@@ -334,26 +350,38 @@ export function ProductForm({
           <Section title="When is it sold?">
             <span className="mb-2 block text-sm font-semibold text-slate-700">Days</span>
             <div className="flex flex-wrap gap-2">
-              {DAYS.map((day, index) => (
-                <label key={day} className="cursor-pointer">
-                  <input
-                    type="checkbox"
-                    name="days"
-                    value={index}
-                    checked={days.includes(index)}
-                    onChange={(e) =>
-                      setDays((current) =>
-                        e.target.checked ? [...current, index] : current.filter((d) => d !== index),
-                      )
-                    }
-                    className="peer sr-only"
-                  />
-                  <span className="block w-14 rounded-xl border border-slate-300 py-2 text-center text-sm font-semibold text-slate-500 transition peer-checked:border-brand-500 peer-checked:bg-brand-600 peer-checked:text-white">
-                    {day}
-                  </span>
-                </label>
-              ))}
+              {DAYS.map((day, index) => {
+                const closed = !schoolDays.includes(index);
+                return (
+                  <label
+                    key={day}
+                    className={closed ? "cursor-not-allowed" : "cursor-pointer"}
+                    title={closed ? `The school is closed on ${day === "Sat" ? "Saturdays" : "Sundays"}` : undefined}
+                  >
+                    <input
+                      type="checkbox"
+                      name="days"
+                      value={index}
+                      disabled={closed}
+                      checked={!closed && days.includes(index)}
+                      onChange={(e) =>
+                        setDays((current) =>
+                          e.target.checked ? [...current, index] : current.filter((d) => d !== index),
+                        )
+                      }
+                      className="peer sr-only"
+                    />
+                    <span className="block w-14 rounded-xl border border-slate-300 py-2 text-center text-sm font-semibold text-slate-500 transition peer-checked:border-brand-500 peer-checked:bg-brand-600 peer-checked:text-white peer-disabled:border-dashed peer-disabled:bg-slate-50 peer-disabled:text-slate-300 peer-disabled:line-through">
+                      {day}
+                    </span>
+                  </label>
+                );
+              })}
             </div>
+            <p className="mt-2 text-xs text-slate-500">
+              {schoolHours.saturday_open ? "Sunday is" : "Saturday and Sunday are"} greyed out because the school is
+              closed {schoolHours.saturday_open ? "that day" : "on those days"}. Change it in Settings → School hours.
+            </p>
             <span className="mb-2 mt-6 block text-sm font-semibold text-slate-700">Time</span>
             <input type="hidden" name="time_mode" value={timeMode} />
             <div className="grid gap-2 sm:grid-cols-2">
@@ -387,8 +415,20 @@ export function ProductForm({
             </div>
             {timeMode === "custom" && (
               <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                <Field label="From" name="available_from" type="time" defaultValue={product?.available_from?.slice(0, 5)} required />
-                <Field label="Until" name="available_until" type="time" defaultValue={product?.available_until?.slice(0, 5)} required />
+                <Field
+                  label="From"
+                  name="available_from"
+                  type="time"
+                  defaultValue={product?.available_from?.slice(0, 5)}
+                  required
+                />
+                <Field
+                  label="Until"
+                  name="available_until"
+                  type="time"
+                  defaultValue={product?.available_until?.slice(0, 5)}
+                  required
+                />
               </div>
             )}
           </Section>
@@ -450,7 +490,14 @@ export function ProductForm({
             </div>
             <div className="mt-4 space-y-4">
               <div className={stockMode === "count" ? "space-y-4" : "hidden"}>
-                <Field label="Quantity in stock" name="stock_qty" type="number" min="0" step="1" defaultValue={product?.stock_qty ?? 0} />
+                <Field
+                  label="Quantity in stock"
+                  name="stock_qty"
+                  type="number"
+                  min="0"
+                  step="1"
+                  defaultValue={product?.stock_qty ?? 0}
+                />
                 <Field
                   label="Warn me when stock falls to"
                   name="low_stock_threshold"
@@ -461,7 +508,14 @@ export function ProductForm({
                 />
               </div>
               <div className={stockMode === "daily_limit" ? "" : "hidden"}>
-                <Field label="Number per day" name="daily_limit" type="number" min="0" step="1" defaultValue={product?.daily_limit ?? 0} />
+                <Field
+                  label="Number per day"
+                  name="daily_limit"
+                  type="number"
+                  min="0"
+                  step="1"
+                  defaultValue={product?.daily_limit ?? 0}
+                />
               </div>
             </div>
           </Section>
@@ -476,7 +530,9 @@ export function ProductForm({
               />
               <span>
                 <span className="block font-semibold text-slate-900">Show on menu</span>
-                <span className="block text-sm text-slate-500">Untick to hide this item from parents and the counter.</span>
+                <span className="block text-sm text-slate-500">
+                  Untick to hide this item from parents and the counter.
+                </span>
               </span>
             </label>
             <label className="mt-4 flex cursor-pointer items-start gap-3 border-t border-slate-100 pt-4">
@@ -488,7 +544,9 @@ export function ProductForm({
               />
               <span>
                 <span className="block font-semibold text-slate-900">Pre-order only</span>
-                <span className="block text-sm text-slate-500">Only parents can order it in advance. It won&apos;t appear at the counter.</span>
+                <span className="block text-sm text-slate-500">
+                  Only parents can order it in advance. It won&apos;t appear at the counter.
+                </span>
               </span>
             </label>
           </Card>

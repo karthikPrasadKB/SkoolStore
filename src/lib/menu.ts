@@ -6,7 +6,8 @@ export type StockMode = "count" | "daily_limit" | "unlimited";
 
 export type Category = { id: string; name: string; sort_order: number };
 
-export type OptionInput = { name: string; price_delta: number };
+// price_delta may be text while it's being typed in the item form (e.g. "" or "7."); it's a number once saved.
+export type OptionInput = { name: string; price_delta: number | string };
 export type OptionGroupInput = {
   name: string;
   is_required: boolean;
@@ -79,8 +80,8 @@ export function schoolHoursText(hours: SchoolHours) {
   const saturday =
     hours.saturday_open && hours.saturday_close
       ? `Sat ${formatTime(hours.saturday_open)} – ${formatTime(hours.saturday_close)}`
-      : "Sat closed";
-  return `${weekdays} · ${saturday}`;
+      : "";
+  return saturday ? `${weekdays} · ${saturday}` : `${weekdays}. Closed on Saturdays.`;
 }
 
 export function formatTime(time: string) {

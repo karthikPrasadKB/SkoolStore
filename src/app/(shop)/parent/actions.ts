@@ -130,6 +130,7 @@ export async function sendSupportRequest(_prev: RequestState, formData: FormData
 export type PreorderInput = {
   student_id: string;
   pickup_date: string;
+  slot_id: string | null;
   items: { product_id: string; quantity: number; option_ids: string[] }[];
 };
 
@@ -144,6 +145,7 @@ export async function placePreorder(order: PreorderInput): Promise<PreorderResul
     p_pickup_date: order.pickup_date,
     p_items: order.items,
     p_payment_method: "wallet",
+    p_slot_id: order.slot_id,
   });
   if (error) return { ok: false, error: error.message };
   revalidatePath("/parent", "layout");

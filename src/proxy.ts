@@ -44,6 +44,20 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
+  // Someone else chose this person's password (new staff, or an admin reset): they must set their own first.
+  const path = request.nextUrl.pathname;
+  if (
+    data?.claims?.user_metadata?.must_change_password === true &&
+    path !== "/account/password" &&
+    !path.startsWith("/auth") &&
+    path !== "/login"
+  ) {
+    const passwordUrl = request.nextUrl.clone();
+    passwordUrl.pathname = "/account/password";
+    passwordUrl.search = "";
+    return NextResponse.redirect(passwordUrl);
+  }
+
   return response;
 }
 

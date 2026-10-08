@@ -2,7 +2,7 @@ import Link from "next/link";
 import { CircleCheck, Download, Plus, Store } from "lucide-react";
 import { requireRole } from "@/lib/auth";
 import { formatDay, nowInIndia, orderDeadline, todayInIndia, type CutoffRules } from "@/lib/dates";
-import { formatINR } from "@/lib/menu";
+import { formatINR, formatTime } from "@/lib/menu";
 import { createClient } from "@/lib/supabase/server";
 import { CancelOrderButton } from "./cancel-order";
 
@@ -18,6 +18,7 @@ type OrderRow = {
   created_at: string;
   student: { full_name: string; class_name: string } | null;
   school: (CutoffRules & { name: string }) | null;
+  slot: { name: string; starts_at: string } | null;
   order_items: { name: string; quantity: number; options: { name: string }[] }[];
 };
 
@@ -39,7 +40,7 @@ export default async function ParentOrdersPage({ searchParams }: PageProps<"/par
   const { data } = await supabase
     .from("orders")
     .select(
-      "id, bill_number, source, status, pickup_date, total, payment_method, public_token, created_at, student:students(full_name, class_name), school:schools(name, preorder_cutoff_time, preorder_cutoff_same_day, saturday_open), order_items(name, quantity, options)",
+      "id, bill_number, source, status, pickup_date, total, payment_method, public_token, created_at, student:students(full_name, class_name), school:schools(name, preorder_cutoff_time, preorder_cutoff_same_day, saturday_open), slot:break_slots(name, starts_at), order_items(name, quantity, options)",
     )
     .order("pickup_date", { ascending: false })
     .order("created_at", { ascending: false })
@@ -80,6 +81,7 @@ export default async function ParentOrdersPage({ searchParams }: PageProps<"/par
               ) : (
                 "Pre-order"
               )}
+              {order.slot && ` · ${order.slot.name} (${formatTime(order.slot.starts_at)})`}
               {" · "}Bill #{order.bill_number}
               {order.school && ` · ${order.school.name}`}
             </p>

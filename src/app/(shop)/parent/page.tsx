@@ -64,17 +64,21 @@ export default async function ParentPage() {
       .limit(10),
   ]);
 
+  // list_schools only returns schools that are active (not paused from HQ); anything else is hidden here.
   const allSchools = (allSchoolRows ?? []) as School[];
+  const activeIds = new Set(allSchools.map((s) => s.id));
   // The schools this parent is linked to, with their main school first.
   const linkedSchools = ((linkRows ?? []) as unknown as { school: School | null }[])
     .map((row) => row.school)
-    .filter((school): school is School => Boolean(school))
+    .filter((school): school is School => Boolean(school) && activeIds.has(school!.id))
     .sort((a, b) => (a.id === profile.school_id ? -1 : b.id === profile.school_id ? 1 : a.name.localeCompare(b.name)));
 
-  const students = ((studentRows ?? []) as unknown as (Child & { school_id: string })[]).map((child) => ({
-    ...child,
-    wallet_daily_limit: child.wallet_daily_limit === null ? null : Number(child.wallet_daily_limit),
-  }));
+  const students = ((studentRows ?? []) as unknown as (Child & { school_id: string })[])
+    .filter((child) => activeIds.has(child.school_id))
+    .map((child) => ({
+      ...child,
+      wallet_daily_limit: child.wallet_daily_limit === null ? null : Number(child.wallet_daily_limit),
+    }));
 
   // One balance card per school the family uses (from their children and any existing wallets).
   const schoolNames = new Map<string, string>([[profile.school_id, profile.school.name]]);
@@ -85,11 +89,13 @@ export default async function ParentPage() {
   );
   const balances: WalletBalance[] = [
     ...new Set([...linkedSchools.map((s) => s.id), ...students.map((c) => c.school_id), ...balanceBySchool.keys()]),
-  ].map((schoolId) => ({
-    school_id: schoolId,
-    school_name: schoolNames.get(schoolId) ?? "School",
-    balance: balanceBySchool.get(schoolId) ?? 0,
-  }));
+  ]
+    .filter((schoolId) => activeIds.has(schoolId))
+    .map((schoolId) => ({
+      school_id: schoolId,
+      school_name: schoolNames.get(schoolId) ?? "School",
+      balance: balanceBySchool.get(schoolId) ?? 0,
+    }));
 
   type TxnRow = Omit<WalletTxn, "school_name" | "student_name"> & {
     wallet: { school: { name: string } | null };

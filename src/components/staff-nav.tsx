@@ -2,14 +2,27 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { GraduationCap, History, LayoutDashboard, MessageSquare, Package, Receipt, Settings, type LucideIcon } from "lucide-react";
+import {
+  ChartColumn,
+  ClipboardList,
+  GraduationCap,
+  History,
+  LayoutDashboard,
+  MessageSquare,
+  Package,
+  Receipt,
+  Settings,
+  type LucideIcon,
+} from "lucide-react";
 import { areasFor, type Role } from "@/lib/roles";
 
 const ICONS: Record<string, LucideIcon> = {
   "/admin": LayoutDashboard,
   "/kitchen": Package,
   "/counter": Receipt,
+  "/counter/preorders": ClipboardList,
   "/counter/sales": History,
+  "/admin/reports": ChartColumn,
   "/admin/students": GraduationCap,
   "/admin/requests": MessageSquare,
   "/admin/settings": Settings,
@@ -43,9 +56,7 @@ export function StaffNav({
             key={area.href}
             href={area.href}
             className={`flex shrink-0 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition ${
-              active
-                ? "bg-brand-50 text-brand-700"
-                : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+              active ? "bg-brand-50 text-brand-700" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
             }`}
           >
             <Icon className="h-[18px] w-[18px]" />

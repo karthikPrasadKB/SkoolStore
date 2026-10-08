@@ -13,8 +13,10 @@ export const ROLE_LABELS: Record<Role, string> = {
 export const AREAS = [
   { href: "/admin", label: "Dashboard", roles: ["admin"] },
   { href: "/counter", label: "Counter", roles: ["admin", "canteen_staff", "counter_staff"] },
+  { href: "/counter/preorders", label: "Pre-orders", roles: ["admin", "canteen_staff", "counter_staff"] },
   { href: "/counter/sales", label: "Today's sales", roles: ["admin", "canteen_staff", "counter_staff"] },
   { href: "/kitchen", label: "Menu & stock", roles: ["admin", "canteen_staff", "counter_staff"] },
+  { href: "/admin/reports", label: "Reports", roles: ["admin"] },
   { href: "/admin/students", label: "Students", roles: ["admin"] },
   { href: "/admin/requests", label: "Requests", roles: ["admin"] },
   { href: "/admin/settings", label: "Settings", roles: ["admin"] },

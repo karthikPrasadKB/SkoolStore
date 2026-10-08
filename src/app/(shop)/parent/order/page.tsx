@@ -5,7 +5,7 @@ import { requireRole } from "@/lib/auth";
 import { dayOfWeek, deadlineText, orderDays, type CutoffRules } from "@/lib/dates";
 import type { Category, FoodType, Product } from "@/lib/menu";
 import { createClient } from "@/lib/supabase/server";
-import { OrderBuilder } from "./order-builder";
+import { OrderBuilder, type PickupSlot } from "./order-builder";
 
 type ChildRow = {
   id: string;
@@ -33,10 +33,15 @@ export default async function OrderPage({ searchParams }: PageProps<"/parent/ord
 
   const { data: childRows } = await supabase
     .from("students")
-    .select("id, full_name, class_name, school_id, school:schools(name, preorder_cutoff_time, preorder_cutoff_same_day, saturday_open)")
+    .select(
+      "id, full_name, class_name, school_id, school:schools(name, preorder_cutoff_time, preorder_cutoff_same_day, saturday_open)",
+    )
     .eq("parent_id", profile.id)
     .order("created_at");
-  const children = (childRows ?? []) as unknown as ChildRow[];
+  // Only children at schools that are active (paused schools are hidden from parents).
+  const { data: activeRows } = await supabase.rpc("list_schools");
+  const activeIds = new Set(((activeRows ?? []) as { id: string }[]).map((s) => s.id));
+  const children = ((childRows ?? []) as unknown as ChildRow[]).filter((c) => activeIds.has(c.school_id));
 
   if (children.length === 0) {
     return (
@@ -44,7 +49,10 @@ export default async function OrderPage({ searchParams }: PageProps<"/parent/ord
         <p className="text-4xl">👧🧒</p>
         <h1 className="mt-4 text-2xl font-bold">Add your child first</h1>
         <p className="mt-2 text-slate-500">Orders are placed for a child, so add them on your home page.</p>
-        <Link href="/parent" className="mt-6 inline-block rounded-xl bg-accent-500 px-5 py-3 font-semibold text-white hover:bg-accent-600">
+        <Link
+          href="/parent"
+          className="mt-6 inline-block rounded-xl bg-accent-500 px-5 py-3 font-semibold text-white hover:bg-accent-600"
+        >
           Go to my children
         </Link>
       </div>
@@ -74,17 +82,50 @@ export default async function OrderPage({ searchParams }: PageProps<"/parent/ord
 
   if (selectedDay) {
     const dow = dayOfWeek(selectedDay.date);
-    const [{ data: productRows }, { data: categoryRows }, { data: soldRows }, { data: wallet }] = await Promise.all([
+    const [
+      { data: productRows },
+      { data: categoryRows },
+      { data: soldRows },
+      { data: wallet },
+      { data: slotRows },
+      { data: takenRows },
+    ] = await Promise.all([
       supabase
         .from("products")
-        .select("*, option_groups(id, name, is_required, max_select, sort_order, options(id, name, price_delta, sort_order))")
+        .select(
+          "*, option_groups(id, name, is_required, max_select, sort_order, options(id, name, price_delta, sort_order))",
+        )
         .eq("school_id", selected.school_id)
         .eq("is_active", true)
         .order("name"),
-      supabase.from("categories").select("id, name, sort_order").eq("school_id", selected.school_id).order("sort_order"),
+      supabase
+        .from("categories")
+        .select("id, name, sort_order")
+        .eq("school_id", selected.school_id)
+        .order("sort_order"),
       supabase.rpc("sold_for_date", { p_school_id: selected.school_id, p_date: selectedDay.date }),
-      supabase.from("wallets").select("balance").eq("parent_id", profile.id).eq("school_id", selected.school_id).maybeSingle(),
+      supabase
+        .from("wallets")
+        .select("balance")
+        .eq("parent_id", profile.id)
+        .eq("school_id", selected.school_id)
+        .maybeSingle(),
+      supabase
+        .from("break_slots")
+        .select("id, name, starts_at, capacity")
+        .eq("school_id", selected.school_id)
+        .eq("is_active", true)
+        .order("starts_at"),
+      supabase.rpc("slot_availability", { p_school_id: selected.school_id, p_date: selectedDay.date }),
     ]);
+
+    // Pickup times with the places still free on the chosen day.
+    const taken = new Map(
+      ((takenRows ?? []) as { slot_id: string; taken: number }[]).map((r) => [r.slot_id, Number(r.taken)]),
+    );
+    const slots: PickupSlot[] = (
+      (slotRows ?? []) as { id: string; name: string; starts_at: string; capacity: number }[]
+    ).map((slot) => ({ ...slot, left: Math.max(slot.capacity - (taken.get(slot.id) ?? 0), 0) }));
 
     const sold = new Map(
       ((soldRows ?? []) as { product_id: string; quantity: number }[]).map((r) => [r.product_id, Number(r.quantity)]),
@@ -129,6 +170,7 @@ export default async function OrderPage({ searchParams }: PageProps<"/parent/ord
         dayLabel={selectedDay.label}
         pickupDate={selectedDay.date}
         closesAt={deadlineText(selectedDay.deadline)}
+        slots={slots}
       />
     );
   }

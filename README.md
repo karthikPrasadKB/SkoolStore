@@ -32,31 +32,29 @@ Parents sign up themselves and pick their school. Staff accounts are created by 
 Supabase → **Authentication** → **Sign In / Providers** → section **User Signups** → turn off **Confirm email** → Save.
 This lets you sign up test accounts without real email addresses. Turn it back on before going live.
 
-### 4. Add your first school
-In the SQL Editor, run (change the name and code as you like):
+### 4. Create your superadmin login
+Superadmins (organisation heads) manage every school from the hidden **HQ** page. There is no sign-up for them;
+create the login from the VS Code terminal:
 
-```sql
-insert into public.schools (name, join_code) values ('Demo Public School', 'DEMO01');
+```bash
+node scripts/create-superadmin.mjs you@example.com 'A-strong-password'
 ```
 
 ### 5. Run the app
-In the VS Code terminal:
-
 ```bash
 npm run dev
 ```
 
-Open http://localhost:3000, click **Create an account**, and use school code `DEMO01`.
+Open http://localhost:3000, log in with the superadmin email and password, and you'll be taken to **HQ**.
+From there, **Add a school** together with its first admin. School admins then add their own staff, menu and settings,
+and parents sign up and pick their school.
 
-### 6. Make yourself the school admin
-In the SQL Editor, run (with your email):
+To remove someone's superadmin access, run in the SQL Editor:
 
 ```sql
-update public.profiles set role = 'admin'
-where id = (select id from auth.users where email = 'fakeemail@gmail.com');
+delete from public.platform_admins
+where user_id = (select id from auth.users where email = 'you@example.com');
 ```
-
-Refresh the app. You'll now see the Admin page.
 
 ## Your company details
 The email, phone and address on the landing page come from `src/lib/site.ts`. Edit that file to change them.

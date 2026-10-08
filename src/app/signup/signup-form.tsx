@@ -48,7 +48,7 @@ export function SignupForm({ schools }: { schools: School[] }) {
         <span className="mt-1 block text-xs text-slate-500">
           {multiple
             ? "Pick every school your children go to. You can add more later."
-            : "Type your school's name or code to find it."}
+            : "Type your school's name to find it."}
         </span>
       </div>
 

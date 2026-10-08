@@ -5,6 +5,7 @@ import type { Role } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { AddStaffForm } from "./add-staff-form";
+import { Partners, type Partner } from "./partners";
 import { StaffRow, type StaffMember } from "./staff-row";
 
 type Member = StaffMember & { created_at: string };
@@ -42,7 +43,46 @@ export default async function AdminPage() {
   )
     .filter((m) => m.profile)
     .map((m) => ({ ...m.profile!, role: m.role, created_at: m.created_at }));
-  const canAddStaff = createAdminClient() !== null;
+  const admin = createAdminClient();
+  const canAddStaff = admin !== null;
+
+  // Partners: everyone who is an admin at any of the schools I'm an admin of.
+  const { data: myAdminRows } = await supabase
+    .from("school_memberships")
+    .select("school:schools(id, name)")
+    .eq("profile_id", profile.id)
+    .eq("role", "admin");
+  const mySchools = ((myAdminRows ?? []) as unknown as { school: { id: string; name: string } | null }[])
+    .map((r) => r.school)
+    .filter((sc): sc is { id: string; name: string } => Boolean(sc));
+  const partners: Partner[] = [];
+  if (admin && mySchools.length > 0) {
+    const { data: rows } = await admin
+      .from("school_memberships")
+      .select("school_id, profile:profiles(id, full_name, username)")
+      .eq("role", "admin")
+      .in(
+        "school_id",
+        mySchools.map((sc) => sc.id),
+      );
+    const byPerson = new Map<string, Partner>();
+    (
+      (rows ?? []) as unknown as {
+        school_id: string;
+        profile: { id: string; full_name: string; username: string | null } | null;
+      }[]
+    )
+      .filter((r) => r.profile && r.profile.id !== profile.id)
+      .forEach((r) => {
+        const entry = byPerson.get(r.profile!.id) ?? {
+          name: `${r.profile!.full_name}${r.profile!.username ? ` (${r.profile!.username})` : ""}`,
+          schools: [],
+        };
+        entry.schools.push(mySchools.find((sc) => sc.id === r.school_id)?.name ?? "");
+        byPerson.set(r.profile!.id, entry);
+      });
+    partners.push(...byPerson.values());
+  }
   const count = (...roles: Role[]) => members.filter((m) => roles.includes(m.role)).length;
 
   return (
@@ -62,11 +102,11 @@ export default async function AdminPage() {
       </div>
 
       <div className="mt-6 overflow-hidden rounded-2xl bg-gradient-to-br from-brand-600 to-brand-900 p-6 text-white shadow-sm">
-        <p className="text-sm font-semibold uppercase tracking-wider text-brand-200">School join code</p>
+        <p className="text-sm font-semibold uppercase tracking-wider text-brand-200">Your school</p>
         <div className="mt-2 flex flex-wrap items-end justify-between gap-4">
-          <p className="font-mono text-4xl font-bold tracking-[0.3em]">{profile.school.join_code}</p>
+          <p className="text-3xl font-bold sm:text-4xl">{profile.school.name}</p>
           <p className="max-w-sm text-sm text-brand-100">
-            Share this code with parents. They pick your school (or type this code) when they create an account.
+            Parents find your school by this name when they create an account. You can change it in Settings.
           </p>
         </div>
       </div>
@@ -96,6 +136,8 @@ export default async function AdminPage() {
           </table>
         </div>
       </Card>
+
+      <Partners partners={partners} mySchools={mySchools} />
     </>
   );
 }

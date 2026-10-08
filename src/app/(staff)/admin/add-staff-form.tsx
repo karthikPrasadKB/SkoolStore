@@ -2,6 +2,7 @@
 
 import { useActionState, useRef, useState } from "react";
 import { UserPlus } from "lucide-react";
+import { Flash } from "@/components/flash";
 import { Alert, Button } from "@/components/ui";
 import { addStaff, type StaffState } from "./actions";
 
@@ -10,12 +11,14 @@ const inputClass =
 
 export function AddStaffForm({ ready }: { ready: boolean }) {
   const [open, setOpen] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
   const [state, action, pending] = useActionState<StaffState, FormData>(async (prev, formData) => {
     const result = await addStaff(prev, formData);
     if (result.added) {
       formRef.current?.reset();
       setOpen(false);
+      setNotice(result.added ?? null);
     }
     return result;
   }, {});
@@ -23,7 +26,7 @@ export function AddStaffForm({ ready }: { ready: boolean }) {
   if (!open) {
     return (
       <div className="space-y-3">
-        {state.added && <Alert kind="success">{state.added}</Alert>}
+        {notice && <Flash message={notice} onClose={() => setNotice(null)} />}
         <Button onClick={() => setOpen(true)}>
           <UserPlus className="h-4 w-4" /> Add staff
         </Button>
@@ -35,7 +38,8 @@ export function AddStaffForm({ ready }: { ready: boolean }) {
     <form ref={formRef} action={action} className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
       {!ready && (
         <Alert kind="error">
-          Adding staff needs the Supabase secret key in .env.local (SUPABASE_SECRET_KEY). See the setup steps in the README.
+          Adding staff needs the Supabase secret key in .env.local (SUPABASE_SECRET_KEY). See the setup steps in the
+          README.
         </Alert>
       )}
       <div className="grid gap-3 sm:grid-cols-2">

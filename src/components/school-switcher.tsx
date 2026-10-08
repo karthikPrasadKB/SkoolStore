@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
-import { Check, ChevronsUpDown, Plus } from "lucide-react";
+import { useActionState, useEffect, useRef, useState, useTransition } from "react";
+import { Check, ChevronsUpDown, LoaderCircle, Plus } from "lucide-react";
 import { createSchool, switchSchool, type NewSchoolState } from "@/app/(staff)/school-actions";
 import { ROLE_LABELS, type Role } from "@/lib/roles";
 
@@ -19,13 +19,33 @@ export function SchoolSwitcher({
 }) {
   const [open, setOpen] = useState(false);
   const [adding, setAdding] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  // Close the list when clicking or tapping anywhere outside it, or pressing Escape.
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (e: PointerEvent) => {
+      if (!rootRef.current?.contains(e.target as Node)) {
+        setOpen(false);
+        setAdding(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
   const [switching, startSwitch] = useTransition();
+  const [target, setTarget] = useState<string | null>(null);
   const [state, action, pending] = useActionState<NewSchoolState, FormData>(createSchool, {});
   const current = schools.find((s) => s.id === currentId);
   const canOpen = schools.length > 1 || canAdd;
 
   return (
-    <div className="relative">
+    <div ref={rootRef} className="relative">
       <button
         type="button"
         onClick={() => canOpen && setOpen((v) => !v)}
@@ -49,7 +69,10 @@ export function SchoolSwitcher({
               disabled={switching}
               onClick={() => {
                 setOpen(false);
-                if (school.id !== currentId) startSwitch(async () => void (await switchSchool(school.id)));
+                if (school.id !== currentId) {
+                  setTarget(school.name);
+                  startSwitch(async () => void (await switchSchool(school.id)));
+                }
               }}
               className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-slate-50"
             >
@@ -70,7 +93,7 @@ export function SchoolSwitcher({
                   minLength={2}
                   maxLength={200}
                   autoFocus
-                  placeholder="New school name"
+                  placeholder="Name and area, e.g. Greenwood - KGF"
                   className="w-full rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm outline-none focus:border-brand-500"
                 />
                 {state.error && <p className="text-xs text-red-600">{state.error}</p>}
@@ -99,6 +122,17 @@ export function SchoolSwitcher({
                 <Plus className="h-4 w-4" /> Add a school
               </button>
             ))}
+        </div>
+      )}
+      {/* Block the page while switching, so nothing is done in the old school by mistake. */}
+      {switching && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-3 bg-white/80 backdrop-blur-sm"
+        >
+          <LoaderCircle className="h-10 w-10 animate-spin text-brand-600" />
+          <p className="text-lg font-semibold text-slate-900">Switching to {target ?? "school"}…</p>
         </div>
       )}
     </div>
