@@ -39,6 +39,14 @@ const admin = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SECRET_KEY
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
+// Emails are unique across everyone: don't reuse an email saved on a staff/admin account.
+const { data: clash } = await admin.rpc("contact_in_use", { p_email: email, p_phone: null, p_exclude: null });
+const { data: existingLogin } = await admin.rpc("staff_login_for_email", { p_email: email });
+if (clash === "email" && existingLogin) {
+  console.error(`${email} is already the contact email of a staff/admin account. Please use a different email.`);
+  process.exit(1);
+}
+
 let userId;
 const { data, error } = await admin.auth.admin.createUser({
   email: email.toLowerCase(),

@@ -5,7 +5,7 @@ import { Logo } from "@/components/logo";
 const POINTS = [
   { icon: CalendarClock, text: "Order today or pre-order for the week" },
   { icon: IdCard, text: "Kids pick up with their school ID card" },
-  { icon: Package, text: "Live stock and sales for canteen staff" },
+  { icon: Package, text: "Live stock and sales for store staff" },
 ];
 
 // Split-screen frame for the login and sign up pages.
@@ -45,7 +45,7 @@ export function AuthShell({
             ))}
           </ul>
         </div>
-        <p className="relative text-sm text-brand-200">Made for school canteens, parents and kids.</p>
+        <p className="relative text-sm text-brand-200">Made for school stores, parents and kids.</p>
       </aside>
 
       <main className="flex flex-1 flex-col items-center justify-center bg-white px-4 py-12">

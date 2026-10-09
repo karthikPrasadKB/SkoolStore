@@ -143,7 +143,7 @@ export function Pos({
 
   function findStudent() {
     if (!studentCode) {
-      setStudentError(useCanteenCodes ? "Enter the ID card number or canteen code." : "Enter the ID card number.");
+      setStudentError(useCanteenCodes ? "Enter the ID card number or store code." : "Enter the ID card number.");
       return;
     }
     startLookup(async () => {
@@ -418,7 +418,7 @@ export function Pos({
                     autoFocus
                     autoCapitalize="characters"
                     autoComplete="off"
-                    placeholder={useCanteenCodes ? "ID card number or canteen code" : "ID card number"}
+                    placeholder={useCanteenCodes ? "ID card number or store code" : "ID card number"}
                     className={`${inputClass} font-mono uppercase tracking-widest`}
                   />
                   <button

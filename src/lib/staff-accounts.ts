@@ -42,6 +42,21 @@ export function readNewStaff(formData: FormData, role?: StaffRole): NewStaff | {
   return staff;
 }
 
+// Email and phone are unique across everyone (parents, staff, admins). Returns a message if taken.
+// excludeId: the person being edited, so they don't clash with themselves.
+export async function contactTaken(email: string, phone: string, excludeId?: string): Promise<string | null> {
+  const admin = createAdminClient();
+  if (!admin) return null;
+  const { data } = await admin.rpc("contact_in_use", {
+    p_email: email || null,
+    p_phone: phone || null,
+    p_exclude: excludeId ?? null,
+  });
+  if (data === "email") return "This email is already used by another account.";
+  if (data === "phone") return "This phone number is already used by another account.";
+  return null;
+}
+
 // Creates a ready-to-use username login for a staff member at a school.
 // Only call this after checking the caller is allowed (a school admin or a superadmin).
 export async function createStaffAccount(
@@ -50,6 +65,8 @@ export async function createStaffAccount(
 ): Promise<{ error: string } | { ok: true }> {
   const admin = createAdminClient();
   if (!admin) return { error: "Adding staff isn't set up yet: the SUPABASE_SECRET_KEY is missing from .env.local." };
+  const taken = await contactTaken(staff.contactEmail, staff.phone);
+  if (taken) return { error: taken };
 
   // The sign-up trigger creates their profile at this school (as a parent); then we make them staff.
   const { data, error } = await admin.auth.admin.createUser({
@@ -94,6 +111,8 @@ export async function createPendingClientAdmin(
 ): Promise<{ error: string } | { ok: true }> {
   const admin = createAdminClient();
   if (!admin) return { error: "The SUPABASE_SECRET_KEY is missing from .env.local." };
+  const taken = await contactTaken(staff.contactEmail, staff.phone);
+  if (taken) return { error: taken };
 
   const { data, error } = await admin.auth.admin.createUser({
     email: staffEmail(staff.username),

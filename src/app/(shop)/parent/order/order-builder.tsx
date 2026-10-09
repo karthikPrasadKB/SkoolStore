@@ -233,7 +233,7 @@ export function OrderBuilder({
 
         {cart.length > 0 && shortBy > 0 && (
           <p className="rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
-            Your wallet is {formatINR(shortBy)} short. Top up at the canteen counter with cash or UPI.
+            Your wallet is {formatINR(shortBy)} short. Top up at the store counter with cash or UPI.
           </p>
         )}
         {error && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}

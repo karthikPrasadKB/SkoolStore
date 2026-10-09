@@ -56,6 +56,31 @@ delete from public.platform_admins
 where user_id = (select id from auth.users where email = 'you@example.com');
 ```
 
+## Emails: password reset and sign-up confirmation
+1. Supabase → **Authentication** → **URL Configuration** → **Site URL**: `http://localhost:3000` while testing
+   (your real web address once live).
+2. Supabase → **Authentication** → **Emails** → **Reset Password** template. Replace the link in the message with:
+
+   ```html
+   <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery">Reset your password</a>
+   ```
+
+   This makes the link work even when the email is opened on a different phone or computer.
+   Do the same for the **Confirm signup** template, using `type=email`:
+
+   ```html
+   <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email">Confirm your email</a>
+   ```
+
+   Then, at go-live, turn **Confirm email** back on (Authentication → Sign In / Providers → User Signups):
+   new parents must click that link before they can log in.
+3. Supabase's built-in email sender is only for testing (a few emails per hour, and on newer projects only to your
+   own team's addresses). Before going live, connect an email service such as Resend under
+   **Authentication** → **Emails** → **SMTP Settings**.
+
+Staff who log in with a username can't receive reset emails: their school admin resets their password (🔑 on the
+Dashboard).
+
 ## Your company details
 The email, phone and address on the landing page come from `src/lib/site.ts`. Edit that file to change them.
 Messages sent through the landing page's contact form appear in Supabase → **Table Editor** → `contact_messages`.

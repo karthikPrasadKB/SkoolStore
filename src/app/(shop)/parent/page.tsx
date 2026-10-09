@@ -125,7 +125,7 @@ export default async function ParentPage() {
           <h1 className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">
             What&apos;s for lunch at {profile.school.name}?
           </h1>
-          <p className="mt-3 text-accent-50">Fresh food from your school canteen, ready when your child is.</p>
+          <p className="mt-3 text-accent-50">Fresh food and school essentials from your school store, ready when your child is.</p>
           {students.length > 0 && (
             <Link
               href="/parent/order"

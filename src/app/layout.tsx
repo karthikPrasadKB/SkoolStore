@@ -8,9 +8,9 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "SkoolStore — the smarter school canteen",
+  title: "SkoolStore — the smarter school store",
   description:
-    "Pre-orders, quick counter billing, ID card pickup and stock management for school canteens.",
+    "Pre-orders, quick counter billing, ID card pickup and stock management for school stores: food, snacks and stationery.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

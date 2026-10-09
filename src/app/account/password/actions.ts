@@ -27,7 +27,10 @@ export async function changePassword(_prev: PasswordState, formData: FormData): 
   }
   if (next === current) return { error: "Please choose a different password from the current one." };
 
-  const { error } = await supabase.auth.updateUser({ password: next, data: { must_change_password: false } });
+  const { error } = await supabase.auth.updateUser({
+    password: next,
+    data: { must_change_password: false, password_reset: false },
+  });
   if (error) return { error: error.message };
 
   // Refresh the login so the "must change password" flag is cleared straight away.

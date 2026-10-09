@@ -9,7 +9,7 @@ import { getProfile } from "@/lib/auth";
 import { ROLE_LABELS } from "@/lib/roles";
 import { createClient } from "@/lib/supabase/server";
 
-// Frame for admin and canteen staff screens: clean sidebar layout.
+// Frame for admin and store staff screens: clean sidebar layout.
 export default async function StaffLayout({ children }: { children: React.ReactNode }) {
   const profile = await getProfile();
   if (!profile) redirect("/login");

@@ -162,7 +162,7 @@ export function SettingsForm({ school }: { school: SchoolSettings }) {
             className="mt-1 h-4 w-4 accent-brand-600"
           />
           <span>
-            <span className="block font-semibold text-slate-900">Also use canteen codes</span>
+            <span className="block font-semibold text-slate-900">Also use store codes</span>
             <span className="block text-sm text-slate-500">
               Gives every student a private 6-character code (like a PIN) that parents can see. Students can then give
               the code instead of showing their ID card.
@@ -188,7 +188,7 @@ export function SettingsForm({ school }: { school: SchoolSettings }) {
         </label>
       </Section>
 
-      <Section title="Discounts" hint="Admins and canteen staff can always give discounts.">
+      <Section title="Discounts" hint="Admins and store staff can always give discounts.">
         <label className="flex cursor-pointer items-start gap-3">
           <input
             type="checkbox"
@@ -199,7 +199,7 @@ export function SettingsForm({ school }: { school: SchoolSettings }) {
           <span>
             <span className="block font-semibold text-slate-900">Counter staff can give discounts</span>
             <span className="block text-sm text-slate-500">
-              Untick to allow discounts only from admins and canteen staff.
+              Untick to allow discounts only from admins and store staff.
             </span>
           </span>
         </label>

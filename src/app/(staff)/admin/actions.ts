@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireRole } from "@/lib/auth";
 import type { Role } from "@/lib/roles";
 import { getSchool } from "@/lib/school";
-import { createStaffAccount, readNewStaff } from "@/lib/staff-accounts";
+import { contactTaken, createStaffAccount, readNewStaff } from "@/lib/staff-accounts";
 import { staffEmail, USERNAME_PATTERN } from "@/lib/staff-login";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -96,6 +96,8 @@ export async function updateStaff(_prev: EditStaffState, formData: FormData): Pr
 
   const admin = createAdminClient();
   if (!admin) return { error: "The SUPABASE_SECRET_KEY is missing from .env.local." };
+  const taken = await contactTaken(contactEmail, phone, memberId);
+  if (taken) return { error: taken };
 
   // A new username also changes their hidden login email.
   const usernameChanged = Boolean(member.username) && newUsername !== member.username;

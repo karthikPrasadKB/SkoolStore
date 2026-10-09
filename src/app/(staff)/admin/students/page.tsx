@@ -58,7 +58,7 @@ export default async function StudentsPage({ searchParams }: PageProps<"/admin/s
                   <th className="px-5 py-3 font-semibold">Name</th>
                   <th className="px-5 py-3 font-semibold">Class</th>
                   <th className="px-5 py-3 font-semibold">ID card</th>
-                  {school.use_canteen_codes && <th className="px-5 py-3 font-semibold">Canteen code</th>}
+                  {school.use_canteen_codes && <th className="px-5 py-3 font-semibold">Store code</th>}
                   <th className="px-5 py-3 font-semibold">Parent</th>
                   <th className="px-5 py-3" />
                 </tr>

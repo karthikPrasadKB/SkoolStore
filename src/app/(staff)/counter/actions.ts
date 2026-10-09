@@ -78,7 +78,7 @@ export type StudentMatch = {
   spent_today: number;
 } | null;
 
-// Finds a student by their ID card number (or canteen code, if the school uses codes),
+// Finds a student by their ID card number (or store code, if the school uses codes),
 // with their family wallet details, so the biller can confirm who it is.
 export async function lookupStudent(idOrCode: string): Promise<StudentMatch> {
   await requireRole(["admin", "canteen_staff", "counter_staff"]);

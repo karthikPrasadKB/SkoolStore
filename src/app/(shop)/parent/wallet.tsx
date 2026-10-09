@@ -27,7 +27,7 @@ export function WalletSection({ balances, transactions }: { balances: WalletBala
     <section className="mt-10">
       <h2 className="text-xl font-bold text-slate-900">Wallet</h2>
       <p className="mt-1 text-sm text-slate-500">
-        Each school&apos;s canteen keeps its own balance. Top up with cash or UPI at the canteen counter. Online top-ups are coming soon.
+        Each school&apos;s store keeps its own balance. Top up with cash or UPI at the store counter. Online top-ups are coming soon.
       </p>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requirePlatformAdmin } from "@/lib/platform";
-import { createPendingClientAdmin, createStaffAccount, readNewStaff } from "@/lib/staff-accounts";
+import { contactTaken, createPendingClientAdmin, createStaffAccount, readNewStaff } from "@/lib/staff-accounts";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type HqState = { error?: string; done?: string };
@@ -22,17 +22,13 @@ function phoneKey(phone: string | null | undefined) {
   return (phone ?? "").replace(/\D/g, "").slice(-10);
 }
 
-// Checks that a new client's email/phone and its admin's email/phone aren't already in use.
+// Checks that a new client's email/phone aren't used by another client, and its admin's aren't used by anyone.
 async function findContactClash(
   db: AdminDb,
   client: { email: string; phone: string },
   admin: { email: string; phone: string },
 ): Promise<string | null> {
-  const [{ data: clients }, { data: clientAdmins }, { data: staff }] = await Promise.all([
-    db.from("clients").select("email, phone"),
-    db.from("client_admins").select("contact_email, phone"),
-    db.from("profiles").select("contact_email, phone").neq("role", "parent"),
-  ]);
+  const { data: clients } = await db.from("clients").select("email, phone");
   const same = (a: string | null | undefined, b: string) => (a ?? "").trim().toLowerCase() === b;
 
   if (client.email && (clients ?? []).some((c) => same(c.email, client.email))) {
@@ -41,17 +37,14 @@ async function findContactClash(
   if (client.phone && (clients ?? []).some((c) => phoneKey(c.phone) === phoneKey(client.phone))) {
     return "Another client already uses this phone number.";
   }
-  const people = [...(clientAdmins ?? []), ...(staff ?? [])];
-  if (admin.email && people.some((p) => same(p.contact_email, admin.email))) {
-    return "This admin email is already used by another admin or staff account.";
-  }
-  if (admin.phone && people.some((p) => phoneKey(p.phone) === phoneKey(admin.phone))) {
-    return "This admin phone number is already used by another admin or staff account.";
+  if (admin.email || admin.phone) {
+    const taken = await contactTaken(admin.email, admin.phone);
+    if (taken) return taken.replace("This", "The admin's");
   }
   return null;
 }
 
-// A new client (the business running the canteens) and its admin. The client's email and phone are optional;
+// A new client (the business running the school stores) and its admin. The client's email and phone are optional;
 // the admin creates the client's schools after their first login.
 export async function createClientAccount(_prev: HqState, formData: FormData): Promise<HqState> {
   await requirePlatformAdmin();

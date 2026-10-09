@@ -118,7 +118,7 @@ export default async function KitchenPage({ searchParams }: PageProps<"/kitchen"
               ? "Try a different search or category."
               : canEdit
                 ? "Add your first item to start building the menu."
-                : "Canteen staff haven't added any items yet."}
+                : "Store staff haven't added any items yet."}
           </p>
           {canEdit && !search && !categoryId && (
             <Link href="/kitchen/new" className={buttonClass("primary", "mt-6")}>

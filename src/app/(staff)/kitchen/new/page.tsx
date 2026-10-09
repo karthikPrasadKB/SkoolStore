@@ -18,7 +18,7 @@ export default async function NewProductPage() {
       <Link href="/kitchen" className="mb-4 inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-slate-900">
         <ArrowLeft className="h-4 w-4" /> Back to menu
       </Link>
-      <PageHeader title="Add item" description="Add something new to your canteen menu." />
+      <PageHeader title="Add item" description="Add something new to your store: food, snacks, stationery or anything else you sell." />
       <ProductForm groups={[]} categories={(data ?? []) as Category[]} defaultGstRate={school.gst_rate} schoolHours={school} />
     </>
   );

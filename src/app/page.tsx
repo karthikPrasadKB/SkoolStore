@@ -32,12 +32,12 @@ const AUDIENCES = [
   {
     icon: Users,
     title: "For parents",
-    text: "Browse the canteen menu, pay online and pre-order meals for the whole week, from your phone.",
+    text: "Browse the store, pay online and pre-order meals, snacks and stationery for the whole week, from your phone.",
     tone: "bg-accent-50 text-accent-600",
   },
   {
     icon: ChefHat,
-    title: "For canteen staff",
+    title: "For store staff",
     text: "Know exactly what to prepare. Manage items, prices and stock in one place, and bill at the counter in seconds.",
     tone: "bg-emerald-50 text-emerald-600",
   },
@@ -103,13 +103,13 @@ export default async function HomePage() {
         <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 py-16 lg:grid-cols-2 lg:py-24">
           <div>
             <span className="inline-flex items-center gap-2 rounded-full border border-brand-200 bg-white px-3 py-1 text-sm font-semibold text-brand-700">
-              <Smartphone className="h-4 w-4" /> Built for school canteens
+              <Smartphone className="h-4 w-4" /> Built for school stores
             </span>
             <h1 className="mt-6 text-4xl font-extrabold leading-tight tracking-tight text-slate-900 sm:text-6xl">
-              The smarter <span className="text-brand-600">school canteen</span>.
+              The smarter <span className="text-brand-600">school store</span>.
             </h1>
             <p className="mt-6 max-w-xl text-lg text-slate-600">
-              SkoolStore lets parents pre-order meals online, helps canteen staff bill and manage stock
+              SkoolStore lets parents pre-order meals and school essentials online, helps store staff bill and manage stock
               effortlessly, and lets kids pick up their food with just their ID card.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
@@ -192,7 +192,7 @@ export default async function HomePage() {
           <div className="mx-auto max-w-2xl text-center">
             <p className="font-semibold text-brand-600">Features</p>
             <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
-              Everything your canteen needs
+              Everything your school store needs
             </h2>
             <p className="mt-4 text-lg text-slate-600">
               From the first order of the morning to the end-of-day report.
@@ -244,7 +244,7 @@ export default async function HomePage() {
               Bring SkoolStore to your school
             </h2>
             <p className="mt-4 text-brand-100">
-              Run a school or canteen? Tell us a little about it and we&apos;ll show you how SkoolStore works.
+              Run a school or a school store? Tell us a little about it and we&apos;ll show you how SkoolStore works.
             </p>
             <ul className="mt-8 space-y-4">
               <li className="flex items-center gap-3">

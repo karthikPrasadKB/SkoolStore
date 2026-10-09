@@ -92,7 +92,7 @@ export default async function AdminPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Stat label="Students" value={studentCount ?? 0} icon={GraduationCap} tone="bg-accent-50 text-accent-600" />
         <Stat
-          label="Canteen staff"
+          label="Store staff"
           value={count("canteen_staff")}
           icon={ChefHat}
           tone="bg-emerald-50 text-emerald-600"
@@ -114,7 +114,7 @@ export default async function AdminPage() {
       <Card className="mt-6 p-0">
         <div className="border-b border-slate-200 px-6 py-4">
           <h2 className="font-semibold text-slate-900">Staff</h2>
-          <p className="mb-4 text-sm text-slate-500">The people who run your canteen and counter.</p>
+          <p className="mb-4 text-sm text-slate-500">The people who run your store and counter.</p>
           <AddStaffForm ready={canAddStaff} />
         </div>
         <div className="overflow-x-auto">

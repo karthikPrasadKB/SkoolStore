@@ -4,7 +4,7 @@ export type Role = "admin" | "canteen_staff" | "counter_staff" | "parent";
 
 export const ROLE_LABELS: Record<Role, string> = {
   admin: "School admin",
-  canteen_staff: "Canteen staff",
+  canteen_staff: "Store staff",
   counter_staff: "Counter staff",
   parent: "Parent",
 };

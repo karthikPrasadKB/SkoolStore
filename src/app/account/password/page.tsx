@@ -11,6 +11,8 @@ export default async function PasswordPage() {
   const { data } = await supabase.auth.getClaims();
   if (!data?.claims) redirect("/login");
   const firstTime = data.claims.user_metadata?.must_change_password === true;
+  // Arrived from a "Forgot password" email rather than a temporary password.
+  const fromReset = data.claims.user_metadata?.password_reset === true;
 
   return (
     <main className="flex flex-1 flex-col items-center justify-center bg-slate-50 px-4 py-16">
@@ -22,12 +24,14 @@ export default async function PasswordPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-slate-900">
-              {firstTime ? "Set your own password" : "Change password"}
+              {fromReset ? "Choose a new password" : firstTime ? "Set your own password" : "Change password"}
             </h1>
             <p className="mt-1 text-sm text-slate-500">
-              {firstTime
-                ? "You logged in with a temporary password. Choose your own to continue. Only you will know it."
-                : "Choose a new password for your account."}
+              {fromReset
+                ? "Your reset link worked. Choose a new password to continue."
+                : firstTime
+                  ? "You logged in with a temporary password. Choose your own to continue. Only you will know it."
+                  : "Choose a new password for your account."}
             </p>
           </div>
         </div>

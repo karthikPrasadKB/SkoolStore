@@ -99,7 +99,7 @@ export function SchoolStatus({ schoolName, disabled }: { schoolName: string; dis
             <TriangleAlert className="h-5 w-5 shrink-0 text-amber-600" />
             <ul className="space-y-1">
               <li>Parents won&apos;t see this school, and no new orders can be placed.</li>
-              <li>Counter and canteen staff won&apos;t be able to use it.</li>
+              <li>Counter and store staff won&apos;t be able to use it.</li>
               <li>You and other admins can still open it to turn it back on.</li>
               <li>Nothing is deleted.</li>
             </ul>

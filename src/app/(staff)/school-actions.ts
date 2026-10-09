@@ -23,7 +23,7 @@ export async function switchSchool(schoolId: string) {
 
 export type NewSchoolState = { error?: string };
 
-// An admin adds another school canteen. They become its admin and start working in it.
+// An admin adds another school store. They become its admin and start working in it.
 export async function createSchool(_prev: NewSchoolState, formData: FormData): Promise<NewSchoolState> {
   await requireRole(["admin"]);
   const name = String(formData.get("name") ?? "").trim();

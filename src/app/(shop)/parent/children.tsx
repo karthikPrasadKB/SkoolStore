@@ -110,7 +110,7 @@ export function Children({
                 <label htmlFor="new-child-name" className="text-sm font-semibold text-slate-700">
                   Full name, exactly as on the ID card
                 </label>
-                <InfoTip text="Write the name exactly as it appears on your child's school ID card. Canteen staff check it against the card before handing over food and items." />
+                <InfoTip text="Write the name exactly as it appears on your child's school ID card. Store staff check it against the card before handing over food and items." />
               </div>
               <input
                 id="new-child-name"
@@ -300,11 +300,11 @@ function ChildCard({
         </p>
       )}
 
-      {/* Optional, only at schools that use canteen codes */}
+      {/* Optional, only at schools that use store codes */}
       {child.school?.use_canteen_codes && (
         <>
           <div className="mt-3 rounded-xl bg-accent-50 px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-accent-600">Canteen code</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-accent-600">Store code</p>
             <p className="font-mono text-3xl font-extrabold tracking-[0.25em] text-slate-900">{child.code}</p>
           </div>
           <p className="mt-2 text-xs text-slate-500">

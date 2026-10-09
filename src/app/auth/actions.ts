@@ -2,7 +2,9 @@
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { contactTaken } from "@/lib/staff-accounts";
 import { loginEmail, STAFF_EMAIL_DOMAIN } from "@/lib/staff-login";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 export type FormState = { error?: string; message?: string };
@@ -13,16 +15,23 @@ function text(formData: FormData, key: string) {
 
 export async function login(_prev: FormState, formData: FormData): Promise<FormState> {
   const supabase = await createClient();
-  const { data: signedIn, error } = await supabase.auth.signInWithPassword({
-    // Parents use their email; staff use their username.
-    email: loginEmail(text(formData, "login")),
-    password: String(formData.get("password") ?? ""),
-  });
+  const typed = text(formData, "login");
+  const password = String(formData.get("password") ?? "");
+  // Parents and superadmins log in with their email; staff with their username (or the email on their account).
+  let { data: signedIn, error } = await supabase.auth.signInWithPassword({ email: loginEmail(typed), password });
+
+  if (error && typed.includes("@")) {
+    // Maybe it's the email saved on a staff/admin account: log in to that username account instead.
+    const { data: staffLogin } = (await createAdminClient()?.rpc("staff_login_for_email", { p_email: typed })) ?? {};
+    if (typeof staffLogin === "string" && staffLogin) {
+      ({ data: signedIn, error } = await supabase.auth.signInWithPassword({ email: staffLogin, password }));
+    }
+  }
 
   if (error?.code === "email_not_confirmed") {
     return { error: "Please confirm your email first. Check your inbox for the link we sent." };
   }
-  if (error) return { error: "Wrong email, username or password." };
+  if (error || !signedIn.user) return { error: "Wrong email, username or password." };
 
   // Staff whose school's client is disabled: move them to another school they work at, or refuse the login.
   const { data: profile } = await supabase
@@ -65,6 +74,8 @@ export async function signup(_prev: FormState, formData: FormData): Promise<Form
   if (schoolCodes.length === 0) return { error: "Please choose your school." };
   if (password.length < 8) return { error: "Password must be at least 8 characters." };
   if (email.toLowerCase().endsWith(`@${STAFF_EMAIL_DOMAIN}`)) return { error: "Please use your real email address." };
+  const taken = await contactTaken(email, phone);
+  if (taken) return { error: taken };
 
   const supabase = await createClient();
 
